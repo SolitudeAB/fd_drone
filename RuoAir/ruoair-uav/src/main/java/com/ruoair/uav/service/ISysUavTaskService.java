@@ -79,4 +79,12 @@ public interface ISysUavTaskService
      * @param progress 进度(0-100)
      */
     public void updateProgress(Long taskId, Integer progress);
+
+    /**
+     * 取消任务
+     *
+     * @param taskId 任务ID
+     * @return 结果
+     */
+    public int cancelTask(Long taskId);
 }

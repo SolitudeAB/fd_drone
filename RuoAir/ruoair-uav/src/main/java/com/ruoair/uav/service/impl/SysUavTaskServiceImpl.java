@@ -239,4 +239,37 @@ public class SysUavTaskServiceImpl implements ISysUavTaskService
 
         sysUavResultMapper.insertSysUavResult(result);
     }
+
+    /**
+     * 取消任务
+     */
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public int cancelTask(Long taskId) {
+        SysUavTask task = sysUavTaskMapper.selectSysUavTaskByTaskId(taskId);
+        if (task == null) {
+            throw new ServiceException("任务不存在！");
+        }
+
+        // 只有待执行(0)和执行中(1)可以取消
+        if ("2".equals(task.getTaskStatus()) || "3".equals(task.getTaskStatus())) {
+            throw new ServiceException("任务已结束或已取消，无需重复操作");
+        }
+
+        // 1. 任务状态改为“已取消(3)”
+        task.setTaskStatus("3");
+        task.setUpdateTime(DateUtils.getNowDate());
+        int rows = sysUavTaskMapper.updateSysUavTask(task);
+
+        // 2. 释放关联设备，恢复为“空闲(0)”
+        SysUavEquipment equipment = sysUavEquipmentMapper.selectSysUavEquipmentByEquipmentId(task.getEquipmentId());
+        if (equipment != null) {
+            equipment.setStatus("0");
+            equipment.setUpdateTime(DateUtils.getNowDate());
+            sysUavEquipmentMapper.updateSysUavEquipment(equipment);
+        }
+
+        // 注意：取消任务不生成巡航结果，直接 return
+        return rows;
+    }
 }

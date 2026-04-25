@@ -42,3 +42,27 @@ export function delTask(taskId) {
     method: 'delete'
   })
 }
+
+// 开始执行任务
+export function startTask(taskId) {
+  return request({
+    url: '/uav/task/start/' + taskId,
+    method: 'put'
+  })
+}
+
+// 完成任务并自动生成巡航结果
+export function completeTask(taskId) {
+  return request({
+    url: '/uav/task/complete/' + taskId,
+    method: 'put'
+  })
+}
+
+// 取消任务
+export function cancelTask(taskId) {
+  return request({
+    url: '/uav/task/cancel/' + taskId,
+    method: 'put'
+  })
+}

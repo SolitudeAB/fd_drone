@@ -101,4 +101,38 @@ public class SysUavTaskController extends BaseController
     {
         return toAjax(sysUavTaskService.deleteSysUavTaskByTaskIds(taskIds));
     }
+
+    /**
+     * 开始巡航任务
+     */
+    @PreAuthorize("@ss.hasPermi('uav:task:edit')")
+    @Log(title = "巡航任务", businessType = BusinessType.UPDATE)
+    @PutMapping("/start/{taskId}")
+    public AjaxResult startTask(@PathVariable Long taskId)
+    {
+        sysUavTaskService.startTask(taskId);
+        return success();
+    }
+
+    /**
+     * 完成巡航任务
+     */
+    @PreAuthorize("@ss.hasPermi('uav:task:edit')")
+    @Log(title = "巡航任务", businessType = BusinessType.UPDATE)
+    @PutMapping("/complete/{taskId}")
+    public AjaxResult completeTask(@PathVariable Long taskId)
+    {
+        return toAjax(sysUavTaskService.completeTask(taskId));
+    }
+
+    /**
+     * 取消巡航任务
+     */
+    @PreAuthorize("@ss.hasPermi('uav:task:edit')")
+    @Log(title = "巡航任务", businessType = BusinessType.UPDATE)
+    @PutMapping("/cancel/{taskId}")
+    public AjaxResult cancelTask(@PathVariable Long taskId)
+    {
+        return toAjax(sysUavTaskService.cancelTask(taskId));
+    }
 }
