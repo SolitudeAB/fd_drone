@@ -58,4 +58,21 @@ public interface ISysUavEquipmentService
      * @return 结果
      */
     public int deleteSysUavEquipmentByEquipmentId(Long equipmentId);
+
+    /**
+     * 校验设备是否可用（用于任务开始前检查）
+     *
+     * @param equipmentId 设备ID
+     * @return true=可用, false=不可用
+     */
+    public boolean checkEquipmentAvailable(Long equipmentId);
+
+    /**
+     * 更新设备状态
+     *
+     * @param equipmentId 设备ID
+     * @param status 状态：0空闲,1离线,2故障,3任务中
+     * @return 结果
+     */
+    public int updateEquipmentStatus(Long equipmentId, String status);
 }

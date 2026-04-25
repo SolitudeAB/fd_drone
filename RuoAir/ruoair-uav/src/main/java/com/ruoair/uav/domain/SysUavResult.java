@@ -33,6 +33,30 @@ public class SysUavResult extends BaseEntity
     /** 发现情况 */
     private String findings;
 
+    /** 任务名称（快照） */
+    @Excel(name = "任务名称")
+    private String taskName;
+
+    /** 设备名称（快照） */
+    @Excel(name = "设备名称")
+    private String equipmentName;
+
+    /** 航线名称（快照） */
+    @Excel(name = "航线名称")
+    private String routeName;
+
+    /** 执行人（快照） */
+    @Excel(name = "执行人")
+    private String executor;
+
+    /** 处理情况 */
+    @Excel(name = "处理情况")
+    private String handlingInfo;
+
+    /** AI图片路径 */
+    @Excel(name = "AI图片路径")
+    private String aiImageUrl;
+
     public void setResultId(Long resultId) 
     {
         this.resultId = resultId;
@@ -81,6 +105,66 @@ public class SysUavResult extends BaseEntity
     public String getFindings() 
     {
         return findings;
+    }
+
+    public void setTaskName(String taskName)
+    {
+        this.taskName = taskName;
+    }
+
+    public String getTaskName()
+    {
+        return taskName;
+    }
+
+    public void setEquipmentName(String equipmentName)
+    {
+        this.equipmentName = equipmentName;
+    }
+
+    public String getEquipmentName()
+    {
+        return equipmentName;
+    }
+
+    public void setRouteName(String routeName)
+    {
+        this.routeName = routeName;
+    }
+
+    public String getRouteName()
+    {
+        return routeName;
+    }
+
+    public void setExecutor(String executor)
+    {
+        this.executor = executor;
+    }
+
+    public String getExecutor()
+    {
+        return executor;
+    }
+
+    public void setHandlingInfo(String handlingInfo)
+    {
+        this.handlingInfo = handlingInfo;
+    }
+
+    public String getHandlingInfo()
+    {
+        return handlingInfo;
+    }
+
+    public void setAiImageUrl(String aiImageUrl)
+    {
+        this.aiImageUrl = aiImageUrl;
+    }
+
+    public String getAiImageUrl()
+    {
+        return aiImageUrl;
     }
 
     @Override

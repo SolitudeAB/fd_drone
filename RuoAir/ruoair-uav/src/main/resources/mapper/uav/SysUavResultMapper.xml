@@ -3,7 +3,7 @@
 PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.ruoair.uav.mapper.SysUavResultMapper">
-    
+
     <resultMap type="SysUavResult" id="SysUavResultResult">
         <result property="resultId"    column="result_id"    />
         <result property="resultCode"    column="result_code"    />
@@ -15,20 +15,26 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         <result property="updateBy"    column="update_by"    />
         <result property="updateTime"    column="update_time"    />
         <result property="remark"    column="remark"    />
+        <result property="taskName"    column="task_name"    />
+        <result property="equipmentName"    column="equipment_name"    />
+        <result property="routeName"    column="route_name"    />
+        <result property="executor"    column="executor"    />
+        <result property="handlingInfo"    column="handling_info"    />
+        <result property="aiImageUrl"    column="ai_image_url"    />
     </resultMap>
 
     <sql id="selectSysUavResultVo">
-        select result_id, result_code, task_id, overview, findings, create_by, create_time, update_by, update_time, remark from sys_uav_result
+        select result_id, result_code, task_id, overview, findings, create_by, create_time, update_by, update_time, remark, task_name, equipment_name, route_name, executor, handling_info, ai_image_url from sys_uav_result
     </sql>
 
     <select id="selectSysUavResultList" parameterType="SysUavResult" resultMap="SysUavResultResult">
         <include refid="selectSysUavResultVo"/>
-        <where>  
+        <where>
             <if test="resultCode != null  and resultCode != ''"> and result_code = #{resultCode}</if>
             <if test="taskId != null "> and task_id = #{taskId}</if>
         </where>
     </select>
-    
+
     <select id="selectSysUavResultByResultId" parameterType="Long" resultMap="SysUavResultResult">
         <include refid="selectSysUavResultVo"/>
         where result_id = #{resultId}
@@ -46,6 +52,12 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="updateBy != null">update_by,</if>
             <if test="updateTime != null">update_time,</if>
             <if test="remark != null">remark,</if>
+            <if test="taskName != null and taskName != ''">task_name,</if>
+            <if test="equipmentName != null and equipmentName != ''">equipment_name,</if>
+            <if test="routeName != null and routeName != ''">route_name,</if>
+            <if test="executor != null and executor != ''">executor,</if>
+            <if test="handlingInfo != null and handlingInfo != ''">handling_info,</if>
+            <if test="aiImageUrl != null and aiImageUrl != ''">ai_image_url,</if>
          </trim>
         <trim prefix="values (" suffix=")" suffixOverrides=",">
             <if test="resultCode != null and resultCode != ''">#{resultCode},</if>
@@ -57,6 +69,12 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="updateBy != null">#{updateBy},</if>
             <if test="updateTime != null">#{updateTime},</if>
             <if test="remark != null">#{remark},</if>
+            <if test="taskName != null and taskName != ''">#{taskName},</if>
+            <if test="equipmentName != null and equipmentName != ''">#{equipmentName},</if>
+            <if test="routeName != null and routeName != ''">#{routeName},</if>
+            <if test="executor != null and executor != ''">#{executor},</if>
+            <if test="handlingInfo != null and handlingInfo != ''">#{handlingInfo},</if>
+            <if test="aiImageUrl != null and aiImageUrl != ''">#{aiImageUrl},</if>
          </trim>
     </insert>
 
@@ -72,6 +90,12 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="updateBy != null">update_by = #{updateBy},</if>
             <if test="updateTime != null">update_time = #{updateTime},</if>
             <if test="remark != null">remark = #{remark},</if>
+            <if test="taskName != null and taskName != ''">task_name = #{taskName},</if>
+            <if test="equipmentName != null and equipmentName != ''">equipment_name = #{equipmentName},</if>
+            <if test="routeName != null and routeName != ''">route_name = #{routeName},</if>
+            <if test="executor != null and executor != ''">executor = #{executor},</if>
+            <if test="handlingInfo != null and handlingInfo != ''">handling_info = #{handlingInfo},</if>
+            <if test="aiImageUrl != null and aiImageUrl != ''">ai_image_url = #{aiImageUrl},</if>
         </trim>
         where result_id = #{resultId}
     </update>
@@ -81,7 +105,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
     </delete>
 
     <delete id="deleteSysUavResultByResultIds" parameterType="String">
-        delete from sys_uav_result where result_id in 
+        delete from sys_uav_result where result_id in
         <foreach item="resultId" collection="array" open="(" separator="," close=")">
             #{resultId}
         </foreach>

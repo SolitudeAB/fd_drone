@@ -17,10 +17,12 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         <result property="updateBy"    column="update_by"    />
         <result property="updateTime"    column="update_time"    />
         <result property="remark"    column="remark"    />
+        <result property="executor"    column="executor"    />
+        <result property="progress"    column="progress"    />
     </resultMap>
 
     <sql id="selectSysUavTaskVo">
-        select task_id, task_name, equipment_id, route_id, task_status, start_time, end_time, create_by, create_time, update_by, update_time, remark from sys_uav_task
+        select task_id, task_name, equipment_id, route_id, task_status, start_time, end_time, create_by, create_time, update_by, update_time, remark, executor, progress from sys_uav_task
     </sql>
 
     <select id="selectSysUavTaskList" parameterType="SysUavTask" resultMap="SysUavTaskResult">
@@ -53,6 +55,8 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="updateBy != null">update_by,</if>
             <if test="updateTime != null">update_time,</if>
             <if test="remark != null">remark,</if>
+            <if test="executor != null and executor != ''">executor,</if>
+            <if test="progress != null">progress,</if>
          </trim>
         <trim prefix="values (" suffix=")" suffixOverrides=",">
             <if test="taskName != null and taskName != ''">#{taskName},</if>
@@ -66,6 +70,8 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="updateBy != null">#{updateBy},</if>
             <if test="updateTime != null">#{updateTime},</if>
             <if test="remark != null">#{remark},</if>
+            <if test="executor != null and executor != ''">#{executor},</if>
+            <if test="progress != null">#{progress},</if>
          </trim>
     </insert>
 
@@ -83,6 +89,8 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="updateBy != null">update_by = #{updateBy},</if>
             <if test="updateTime != null">update_time = #{updateTime},</if>
             <if test="remark != null">remark = #{remark},</if>
+            <if test="executor != null and executor != ''">executor = #{executor},</if>
+            <if test="progress != null">progress = #{progress},</if>
         </trim>
         where task_id = #{taskId}
     </update>

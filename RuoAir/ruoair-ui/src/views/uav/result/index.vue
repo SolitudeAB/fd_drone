@@ -74,6 +74,23 @@
       <el-table-column label="结果ID" align="center" prop="resultId" />
       <el-table-column label="结果编号" align="center" prop="resultCode" />
       <el-table-column label="任务ID" align="center" prop="taskId" />
+      <el-table-column label="任务名称" align="center" prop="taskName" />
+      <el-table-column label="设备名称" align="center" prop="equipmentName" />
+      <el-table-column label="航线名称" align="center" prop="routeName" />
+      <el-table-column label="执行人" align="center" prop="executor" />
+      <el-table-column label="处理情况" align="center" prop="handlingInfo" show-overflow-tooltip />
+      <el-table-column label="AI识别图片" align="center" prop="aiImageUrl" width="100">
+        <template slot-scope="scope">
+          <el-image
+            v-if="scope.row.aiImageUrl"
+            :src="scope.row.aiImageUrl"
+            :preview-src-list="[scope.row.aiImageUrl]"
+            fit="cover"
+            style="width: 50px; height: 50px; border-radius: 4px; cursor: pointer;"
+          />
+          <span v-else>-</span>
+        </template>
+      </el-table-column>
       <el-table-column label="巡航概述" align="center" prop="overview" />
       <el-table-column label="操作" align="center" class-name="small-padding fixed-width">
         <template slot-scope="scope">
@@ -117,17 +134,38 @@
     </el-dialog>
 
     <!-- 添加或修改巡航结果对话框 -->
-    <el-dialog :title="title" :visible.sync="open" width="500px" append-to-body>
+    <el-dialog :title="title" :visible.sync="open" width="600px" append-to-body>
       <el-form ref="form" :model="form" :rules="rules" label-width="100px">
         <el-row>
           <el-col :span="24">
             <el-form-item label="结果编号" prop="resultCode">
-              <el-input v-model="form.resultCode" placeholder="请输入结果编号" />
+              <el-input v-model="form.resultCode" placeholder="请输入结果编号" :disabled="form.resultId != null" />
             </el-form-item>
           </el-col>
           <el-col :span="24">
             <el-form-item label="任务ID" prop="taskId">
-              <el-input v-model="form.taskId" placeholder="请输入任务ID" />
+              <el-input v-model="form.taskId" placeholder="请输入任务ID" :disabled="form.resultId != null" />
+            </el-form-item>
+          </el-col>
+          <!-- 快照字段（只读展示） -->
+          <el-col :span="24">
+            <el-form-item label="任务名称">
+              <el-input v-model="form.taskName" placeholder="自动获取" disabled />
+            </el-form-item>
+          </el-col>
+          <el-col :span="24">
+            <el-form-item label="设备名称">
+              <el-input v-model="form.equipmentName" placeholder="自动获取" disabled />
+            </el-form-item>
+          </el-col>
+          <el-col :span="24">
+            <el-form-item label="航线名称">
+              <el-input v-model="form.routeName" placeholder="自动获取" disabled />
+            </el-form-item>
+          </el-col>
+          <el-col :span="24">
+            <el-form-item label="执行人">
+              <el-input v-model="form.executor" placeholder="自动获取" disabled />
             </el-form-item>
           </el-col>
           <el-col :span="24">
@@ -138,6 +176,24 @@
           <el-col :span="24">
             <el-form-item label="发现情况" prop="findings">
               <el-input v-model="form.findings" type="textarea" placeholder="请输入内容" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="24">
+            <el-form-item label="处理情况" prop="handlingInfo">
+              <el-input v-model="form.handlingInfo" type="textarea" placeholder="请输入处理情况" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="24">
+            <el-form-item label="AI识别图片" prop="aiImageUrl">
+              <el-input v-model="form.aiImageUrl" placeholder="请输入图片URL" />
+              <div v-if="form.aiImageUrl" style="margin-top: 10px;">
+                <el-image
+                  :src="form.aiImageUrl"
+                  :preview-src-list="[form.aiImageUrl]"
+                  fit="cover"
+                  style="width: 100px; height: 100px; border-radius: 4px;"
+                />
+              </div>
             </el-form-item>
           </el-col>
           <el-col :span="24">
@@ -235,8 +291,14 @@ export default {
         resultId: null,
         resultCode: null,
         taskId: null,
+        taskName: null,
+        equipmentName: null,
+        routeName: null,
+        executor: null,
         overview: null,
         findings: null,
+        handlingInfo: null,
+        aiImageUrl: null,
         createBy: null,
         createTime: null,
         updateBy: null,
@@ -320,10 +382,9 @@ export default {
         return;
       }
 
-      this.currentResultCode = row.resultCode; // 弹窗显示的标题信息
+      this.currentTaskName = row.taskName || `结果-${row.resultCode}`; // 使用快照中的任务名称
 
       try {
-        // 第一层：根据任务ID获取任务详情
         const taskResponse = await getTask(row.taskId);
         const routeId = taskResponse.data.routeId;
 
@@ -332,7 +393,6 @@ export default {
           return;
         }
 
-        // 第二层：根据航线ID获取坐标数据
         const routeResponse = await getRoute(routeId);
         const routeData = routeResponse.data;
 
@@ -341,7 +401,6 @@ export default {
           return;
         }
 
-        // 赋值坐标并打开弹窗
         this.currentRoutePoints = routeData.routePoints;
         this.mapOpen = true;
 

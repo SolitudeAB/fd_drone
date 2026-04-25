@@ -58,4 +58,25 @@ public interface ISysUavTaskService
      * @return 结果
      */
     public int deleteSysUavTaskByTaskId(Long taskId);
+    /**
+     * 开始任务
+     *
+     * @param taskId 任务ID
+     */
+    public void startTask(Long taskId);
+
+    /**
+     * 完成任务（或更新进度）
+     *
+     * @param taskId 任务ID
+     */
+    public int completeTask(Long taskId);
+
+    /**
+     * 更新任务进度
+     *
+     * @param taskId 任务ID
+     * @param progress 进度(0-100)
+     */
+    public void updateProgress(Long taskId, Integer progress);
 }

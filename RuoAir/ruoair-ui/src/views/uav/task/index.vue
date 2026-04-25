@@ -114,6 +114,16 @@
           <span>{{ parseTime(scope.row.startTime, '{y}-{m}-{d}') }}</span>
         </template>
       </el-table-column>
+      <el-table-column label="执行人" align="center" prop="executor" />
+      <el-table-column label="进度" align="center" prop="progress" width="120">
+        <template slot-scope="scope">
+          <el-progress
+            :percentage="scope.row.progress || 0"
+            :status="scope.row.progress === 100 ? 'success' : undefined"
+            :stroke-width="8"
+          />
+        </template>
+      </el-table-column>
       <el-table-column label="操作" align="center" class-name="small-padding fixed-width">
         <template slot-scope="scope">
           <el-button
@@ -184,6 +194,11 @@
                   :value="dict.value"
                 ></el-option>
               </el-select>
+            </el-form-item>
+          </el-col>
+          <el-col :span="24">
+            <el-form-item label="执行人" prop="executor">
+              <el-input v-model="form.executor" placeholder="请输入执行人" />
             </el-form-item>
           </el-col>
           <el-col :span="24">
@@ -269,6 +284,9 @@ export default {
         taskStatus: [
           { required: true, message: "任务状态不能为空", trigger: "change" }
         ],
+        executor: [
+          { required: false, message: "执行人不能为空", trigger: "blur" }
+        ],
       },
 
       // --- 新增：地图回显相关变量 ---
@@ -315,7 +333,9 @@ export default {
         createTime: null,
         updateBy: null,
         updateTime: null,
-        remark: null
+        remark: null,
+        executor: null,
+        progress: null,
       }
       this.resetForm("form")
     },

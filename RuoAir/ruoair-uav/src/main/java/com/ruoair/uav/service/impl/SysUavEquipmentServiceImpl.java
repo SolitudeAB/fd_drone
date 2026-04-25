@@ -146,4 +146,42 @@ public class SysUavEquipmentServiceImpl implements ISysUavEquipmentService
 
         return sysUavEquipmentMapper.deleteSysUavEquipmentByEquipmentId(equipmentId);
     }
+
+    /**
+     * 校验设备是否可用（用于任务开始前检查）
+     */
+    @Override
+    public boolean checkEquipmentAvailable(Long equipmentId) {
+        SysUavEquipment equipment = sysUavEquipmentMapper.selectSysUavEquipmentByEquipmentId(equipmentId);
+        if (equipment == null) {
+            throw new ServiceException("设备不存在！");
+        }
+        // status: 0=空闲, 1=离线, 2=故障, 3=任务中
+        if (!"0".equals(equipment.getStatus())) {
+            String statusMsg = "";
+            if ("1".equals(equipment.getStatus())) {
+                statusMsg = "离线";
+            } else if ("2".equals(equipment.getStatus())) {
+                statusMsg = "故障";
+            } else if ("3".equals(equipment.getStatus())) {
+                statusMsg = "任务中";
+            } else {
+                statusMsg = "未知状态";
+            }
+            throw new ServiceException("设备【" + equipment.getEquipmentName() + "】当前状态为【" + statusMsg + "】，无法执行任务！");
+        }
+        return true;
+    }
+
+    /**
+     * 更新设备状态
+     */
+    @Override
+    public int updateEquipmentStatus(Long equipmentId, String status) {
+        SysUavEquipment equipment = new SysUavEquipment();
+        equipment.setEquipmentId(equipmentId);
+        equipment.setStatus(status);
+        equipment.setUpdateTime(DateUtils.getNowDate());
+        return sysUavEquipmentMapper.updateSysUavEquipment(equipment);
+    }
 }
