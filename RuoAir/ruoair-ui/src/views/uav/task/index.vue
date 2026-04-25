@@ -118,8 +118,8 @@
       <el-table-column label="进度" align="center" prop="progress" width="120">
         <template slot-scope="scope">
           <el-progress
-            :percentage="scope.row.progress || 0"
-            :status="scope.row.progress === 100 ? 'success' : undefined"
+            :percentage="formatProgress(scope.row.progress)"
+            :status="formatProgress(scope.row.progress) === 100 ? 'success' : undefined"
             :stroke-width="8"
           />
         </template>
@@ -136,12 +136,15 @@
           </template>
 
           <template v-if="scope.row.taskStatus === '1'">
+            <el-button size="mini" type="text" icon="el-icon-video-play" style="color: #67C23A;" @click="handleStart(scope.row)">
+              {{ isTaskPaused(scope.row) ? '继续' : '开始' }}
+            </el-button>
+            <el-button size="mini" type="text" icon="el-icon-video-pause" style="color: #E6A23C;" @click="handleCancel(scope.row)">暂停</el-button>
             <el-button size="mini" type="text" icon="el-icon-data-line" style="color: #409EFF;" @click="handleMonitor(scope.row)">监控</el-button>
             <el-button size="mini" type="text" icon="el-icon-circle-check" style="color: #E6A23C;" @click="handleComplete(scope.row)">完成</el-button>
-            <el-button size="mini" type="text" icon="el-icon-close" style="color: #F56C6C;" @click="handleCancel(scope.row)">取消</el-button>
           </template>
 
-          <el-button v-if="scope.row.taskStatus !== '1'" size="mini" type="text" icon="el-icon-delete" @click="handleDelete(scope.row)" v-hasPermi="['uav:task:remove']">删除</el-button>
+          <el-button v-if="scope.row.taskStatus === '2' || scope.row.taskStatus === '3'" size="mini" type="text" icon="el-icon-delete" @click="handleDelete(scope.row)" v-hasPermi="['uav:task:remove']">删除</el-button>
         </template>
       </el-table-column>
     </el-table>
@@ -167,9 +170,9 @@
           <el-col :span="12">
             <span style="font-weight: bold; font-size: 14px;">
               任务名称: {{ currentSimulationTask.taskName }}<br/>
-              任务进度: <span style="color: #409EFF; font-size: 18px;">{{ progress }}%</span>
+              任务进度: <span style="color: #409EFF; font-size: 18px;">{{ formatProgress(progress) }}%</span>
             </span>
-            <el-progress :percentage="progress" :status="progress === 100 ? 'success' : undefined" :stroke-width="15" style="margin-top: 10px;"></el-progress>
+            <el-progress :percentage="formatProgress(progress)" :show-text="false" :status="formatProgress(progress) === 100 ? 'success' : undefined" :stroke-width="15" style="margin-top: 10px;"></el-progress>
           </el-col>
           <el-col :span="12" style="text-align: right;">
             <div style="font-size: 13px; color: #606266; margin-bottom: 10px;">
@@ -226,8 +229,8 @@
             <el-form-item label="开始时间" prop="startTime">
               <el-date-picker clearable
                               v-model="form.startTime"
-                              type="date"
-                              value-format="yyyy-MM-dd"
+                              type="datetime"
+                              value-format="yyyy-MM-dd HH:mm:ss"
                               placeholder="请选择开始时间"
                               :disabled-date="disabledDate">
               </el-date-picker>
@@ -304,6 +307,9 @@ export default {
         ],
         taskStatus: [
           { required: true, message: "任务状态不能为空", trigger: "change" }
+        ],
+        startTime: [
+          { required: true, message: "开始时间不能为空", trigger: "change" }
         ]
       },
 
@@ -320,7 +326,21 @@ export default {
       simulationTimer: null,    // 进度计算定时器
       currentSimulationTask: {},// 当前正在监控的任务详情
       progress: 0,              // 实时进度百分比
+      progressExact: 0,         // 实时精确进度（用于轨迹计算）
       remainTime: 0,            // 预计剩余时间(分钟)
+      simulationPath: [],
+      simulationPaused: false,
+      hasSimulationStarted: false,
+      pausedTaskMap: {},
+      simulationStartTimestamp: 0,
+      simulationDurationMs: 0,
+      pauseStartedAt: null,
+      totalPausedMs: 0,
+      lastSimulationTaskId: null,
+      lastSyncedProgress: -1,
+      movementStartAt: 0,
+      movementBaseProgress: 0,
+      movementDurationMs: 0,
     }
   },
   created() {
@@ -357,7 +377,7 @@ export default {
         taskName: null,
         equipmentId: null,
         routeId: null,
-        taskStatus: null,
+        taskStatus: "0",
         startTime: null,
         endTime: null,
         createBy: null,
@@ -366,7 +386,7 @@ export default {
         updateTime: null,
         remark: null,
         executor: null,
-        progress: null,
+        progress: 0,
       }
       this.resetForm("form")
     },
@@ -509,13 +529,28 @@ export default {
     // ================== 新增：核心业务流转控制 ==================
     // ==========================================================
 
-    /** 状态扭转：开始执行任务 */
+    isTaskPaused(row) {
+      return !!this.pausedTaskMap[row.taskId];
+    },
+    /** 状态扭转：开始执行任务/继续模拟 */
     handleStart(row) {
-      this.$modal.confirm('确认要开始执行任务【' + row.taskName + '】吗？').then(function() {
+      if (row.taskStatus === "1") {
+        if (this.simulationOpen && this.currentSimulationTask && this.currentSimulationTask.taskId === row.taskId && this.simulationPaused) {
+          this.startOrResumeSimulation();
+          return;
+        }
+        this.openSimulation(row, true);
+        return;
+      }
+      this.$modal.confirm('确认要开始执行任务【' + row.taskName + '】吗？').then(() => {
         return startTask(row.taskId);
       }).then(() => {
+        return getTask(row.taskId);
+      }).then((response) => {
+        const latestTask = response.data;
         this.getList();
         this.$modal.msgSuccess("无人机已起飞，任务启动成功");
+        this.openSimulation(latestTask, true);
       }).catch(() => {});
     },
 
@@ -529,8 +564,16 @@ export default {
       }).catch(() => {});
     },
 
-    /** 状态扭转：取消任务 */
+    /** 状态扭转：暂停模拟/取消任务 */
     handleCancel(row) {
+      if (row.taskStatus === "1") {
+        if (this.simulationOpen && this.currentSimulationTask && this.currentSimulationTask.taskId === row.taskId) {
+          this.pauseSimulation(row.taskId);
+        } else {
+          this.openSimulation(row, true, true);
+        }
+        return;
+      }
       this.$modal.confirm('确认取消该任务？相关设备将被释放，且不生成结果记录。').then(function() {
         return cancelTask(row.taskId);
       }).then(() => {
@@ -545,71 +588,113 @@ export default {
 
     /** 点击【模拟监控】按钮触发 */
     handleMonitor(row) {
+      this.openSimulation(row, false);
+    },
+    openSimulation(row, autoStart, pauseImmediately = false) {
       if (!row.routeId || !row.startTime) {
         this.$modal.msgWarning("任务尚未开始或未绑定航线，无法模拟！");
         return;
       }
-      this.currentSimulationTask = row;
-
-      // 1. 获取航线详情
-      getRoute(row.routeId).then(response => {
+      getTask(row.taskId).then((taskResp) => {
+        const latestTask = taskResp.data || row;
+        this.currentSimulationTask = latestTask;
+        this.progressExact = this.normalizeProgress(Number(latestTask.progress || 0));
+        this.progress = this.formatProgress(this.progressExact);
+        this.updateLocalTaskProgress(latestTask.taskId, this.progress);
+        return getRoute(latestTask.routeId);
+      }).then(response => {
         const routeData = response.data;
         if (!routeData.routePoints) {
           this.$modal.msgWarning("该航线暂无坐标数据，无法加载地图！");
           return;
         }
 
-        // 保存预计时长供计算使用 (如果没有填则默认 10 分钟)
         this.currentSimulationTask.estimatedTime = routeData.estimatedTime || 10;
-
-        // 2. 打开弹窗
+        this.simulationDurationMs = this.currentSimulationTask.estimatedTime * 60 * 1000;
+        this.simulationPath = JSON.parse(routeData.routePoints);
+        if (!Array.isArray(this.simulationPath) || this.simulationPath.length === 0) {
+          this.$modal.msgWarning("该航线坐标为空，无法模拟！");
+          return;
+        }
+        this.prepareSimulationState(autoStart);
         this.simulationOpen = true;
-
-        // 3. 等待 DOM 渲染后，启动算力引擎和地图绘制
         this.$nextTick(() => {
-          this.calculateLiveProgress(this.currentSimulationTask);
-          this.initSimulationMap(routeData.routePoints);
+          this.initSimulationMap().then(() => {
+            if (autoStart) {
+              this.startOrResumeSimulation();
+              if (pauseImmediately) {
+                setTimeout(() => this.pauseSimulation(row.taskId), 200);
+              }
+            } else {
+              this.hasSimulationStarted = false;
+              this.simulationPaused = false;
+              this.refreshRemainTime();
+            }
+          });
         });
+      }).catch(() => {
+        this.$modal.msgError("监控数据获取失败");
       });
+    },
+    prepareSimulationState() {
+      const sameTask = this.currentSimulationTask.taskId
+        && this.currentSimulationTask.taskId === this.lastSimulationTaskId
+        && this.hasSimulationStarted;
+      if (!sameTask) {
+        this.hasSimulationStarted = false;
+        this.simulationPaused = false;
+        this.pauseStartedAt = null;
+        this.totalPausedMs = 0;
+        this.lastSyncedProgress = -1;
+      }
+      this.simulationStartTimestamp = new Date(this.currentSimulationTask.startTime).getTime();
+      this.lastSimulationTaskId = this.currentSimulationTask.taskId;
     },
 
     /** 算力引擎：动态推算进度与剩余时间 */
     calculateLiveProgress(task) {
-      // 每次打开先清除可能遗留的定时器
       if (this.simulationTimer) clearInterval(this.simulationTimer);
-
-      const startTimestamp = new Date(task.startTime).getTime();
-      const durationMs = task.estimatedTime * 60 * 1000;
-
-      // 声明一个计算逻辑函数
-      const calc = () => {
-        const now = new Date().getTime();
-        const elapsedMs = now - startTimestamp;
-        let p = Math.floor((elapsedMs / durationMs) * 100);
-
-        if (p >= 100) {
-          this.progress = 100;
-          this.remainTime = 0;
-          clearInterval(this.simulationTimer); // 停掉定时器
+      if (!this.hasSimulationStarted) {
+        this.refreshRemainTime();
+        this.updateLocalTaskProgress(this.currentSimulationTask.taskId, this.progress);
+        return;
+      }
+      if (this.simulationPaused) {
+        this.refreshRemainTime();
+        return;
+      }
+      const tick = () => {
+        if (this.movementDurationMs <= 0) {
+          this.progressExact = 100;
         } else {
-          this.progress = p > 0 ? p : 0;
-          let r = (durationMs - elapsedMs) / 1000 / 60;
-          this.remainTime = r.toFixed(1);
+          const elapsed = new Date().getTime() - this.movementStartAt;
+          const delta = (elapsed / this.movementDurationMs) * (100 - this.movementBaseProgress);
+          this.progressExact = this.normalizeProgress(this.movementBaseProgress + delta);
+        }
+        this.progress = this.formatProgress(this.progressExact);
+        this.refreshRemainTime();
+        this.updateLocalTaskProgress(this.currentSimulationTask.taskId, this.progress);
+        this.syncTaskProgress(this.progress, false);
+        if (this.progress >= 100) {
+          this.progress = 100;
+          this.syncTaskProgress(100, true);
+          clearInterval(this.simulationTimer);
+          this.simulationTimer = null;
+          this.simulationPaused = false;
+          this.pausedTaskMap[this.currentSimulationTask.taskId] = false;
         }
       };
-
-      calc(); // 马上执行一次
-      this.simulationTimer = setInterval(calc, 2000); // 随后每 2 秒刷新一次进度板
+      tick();
+      this.simulationTimer = setInterval(tick, 1000);
     },
 
     /** 初始化模拟地图与高德动画 */
-    initSimulationMap(routePointsStr) {
-      AMapLoader.load({
+    initSimulationMap() {
+      return AMapLoader.load({
         key: "3e12b539ccc9cec93cc71e8ce8a65306",
         version: "2.0",
-        plugins: ['AMap.Polyline', 'AMap.Marker'] // 引入 Marker 插件实现图标
+        plugins: ['AMap.Polyline', 'AMap.Marker', 'AMap.MoveAnimation']
       }).then((AMap) => {
-        // 如果实例不存在则创建，存在则清空旧图层
         if (!this.simulationMap) {
           this.simulationMap = new AMap.Map("map-simulation-container", {
             zoom: 15,
@@ -619,10 +704,8 @@ export default {
         }
 
         try {
-          const path = JSON.parse(routePointsStr);
+          const path = this.simulationPath;
           if (path.length === 0) return;
-
-          // 画出深蓝色的航线
           const polyline = new AMap.Polyline({
             path: path,
             strokeColor: "#409EFF",
@@ -632,36 +715,209 @@ export default {
           this.simulationMap.add(polyline);
           this.simulationMap.setFitView();
 
-          // 创建在地图上移动的标识符 (无人机)
-          this.uavMarker = new AMap.Marker({
-            map: this.simulationMap,
-            position: path[0],
-            // offset 控制图片中心点，如果不指定图标，默认是高德的小蓝点
-            offset: new AMap.Pixel(-13, -26)
+          const droneIconSvg = "data:image/svg+xml;charset=UTF-8," + encodeURIComponent(
+            "<svg xmlns='http://www.w3.org/2000/svg' width='40' height='40' viewBox='0 0 40 40'><circle cx='20' cy='20' r='19' fill='#409EFF' fill-opacity='0.12'/><path d='M20 3l4 9 9 4-9 4-4 17-4-17-9-4 9-4z' fill='#409EFF' stroke='#1F2D3D' stroke-width='1.2'/><path d='M10 16h20' stroke='#67C23A' stroke-width='2' stroke-linecap='round'/><circle cx='20' cy='20' r='2.2' fill='#67C23A'/></svg>"
+          );
+          const droneIcon = new AMap.Icon({
+            image: droneIconSvg,
+            size: new AMap.Size(40, 40),
+            imageSize: new AMap.Size(40, 40)
           });
 
-          // 核心动画 API: moveAlong
-          // 速度(speed)设定为 500 km/h 仅为演示视觉效果
-          this.uavMarker.moveAlong(path, {
-            speed: 500,
-            autoRotation: true // 开启自动旋转机头方向
+          this.uavMarker = new AMap.Marker({
+            map: this.simulationMap,
+            position: this.getPositionByProgress(path, this.progressExact),
+            icon: droneIcon,
+            extData: { taskId: this.currentSimulationTask.taskId },
+            anchor: "center",
+            offset: new AMap.Pixel(0, 0)
           });
         } catch (e) {
           console.error("加载模拟路线失败", e);
         }
+      }).catch((e) => {
+        console.error("加载模拟地图失败", e);
       });
+    },
+    startOrResumeSimulation() {
+      if (!this.uavMarker || !this.simulationPath.length) return;
+      this.progressExact = this.normalizeProgress(this.progressExact);
+      this.progress = this.formatProgress(this.progressExact);
+      if (this.progressExact >= 100) {
+        this.refreshRemainTime();
+        return;
+      }
+      const remainingPath = this.buildRemainingPath(this.simulationPath, this.progressExact);
+      if (remainingPath.length < 2) {
+        this.progressExact = 100;
+        this.progress = 100;
+        this.refreshRemainTime();
+        this.syncTaskProgress(100, true);
+        return;
+      }
+      if (typeof this.uavMarker.stopMove === "function") {
+        this.uavMarker.stopMove();
+      }
+      this.uavMarker.setPosition(remainingPath[0]);
+      this.movementBaseProgress = this.progressExact;
+      this.movementDurationMs = this.simulationDurationMs * (100 - this.progressExact) / 100;
+      this.movementStartAt = new Date().getTime();
+      this.simulationPaused = false;
+      this.hasSimulationStarted = true;
+      this.pausedTaskMap[this.currentSimulationTask.taskId] = false;
+      this.uavMarker.moveAlong(remainingPath, {
+        duration: this.movementDurationMs,
+        autoRotation: true,
+        easing: function(k) { return k; }
+      });
+      this.calculateLiveProgress(this.currentSimulationTask);
+    },
+    pauseSimulation(taskId) {
+      if (!this.simulationOpen || !this.currentSimulationTask || this.currentSimulationTask.taskId !== taskId || !this.uavMarker) {
+        this.pausedTaskMap[taskId] = true;
+        this.$modal.msgWarning("正在打开该任务监控并暂停，请稍候。");
+        return;
+      }
+      if (this.uavMarker && !this.simulationPaused) {
+        if (typeof this.uavMarker.stopMove === "function") {
+          this.uavMarker.stopMove();
+        }
+        this.simulationPaused = true;
+        this.pauseStartedAt = new Date().getTime();
+        this.pausedTaskMap[taskId] = true;
+        this.syncTaskProgress(this.progress, true);
+        if (this.simulationTimer) {
+          clearInterval(this.simulationTimer);
+          this.simulationTimer = null;
+        }
+        this.$modal.msgSuccess("模拟已暂停，再次点击开始可继续");
+      }
+    },
+    updateLocalTaskProgress(taskId, progress) {
+      if (!taskId) return;
+      const target = this.taskList.find(item => item.taskId === taskId);
+      if (target) {
+        this.$set(target, "progress", this.formatProgress(progress));
+      }
+    },
+    syncTaskProgress(progress, force) {
+      const taskId = this.currentSimulationTask && this.currentSimulationTask.taskId;
+      if (!taskId) return;
+      const integerProgress = this.formatProgress(progress);
+      if (!force && this.lastSyncedProgress >= 0 && Math.abs(integerProgress - this.lastSyncedProgress) < 2) {
+        return;
+      }
+      this.lastSyncedProgress = integerProgress;
+      updateTask({ taskId, progress: integerProgress }).then(() => {
+        if (force) {
+          this.getList();
+        }
+      }).catch(() => {});
+    },
+    normalizeProgress(progress) {
+      if (Number.isNaN(progress)) return 0;
+      if (progress < 0) return 0;
+      if (progress > 100) return 100;
+      return Number(progress);
+    },
+    formatProgress(progress) {
+      return Math.round(this.normalizeProgress(Number(progress || 0)));
+    },
+    refreshRemainTime() {
+      const remain = this.simulationDurationMs * (100 - this.progressExact) / 100 / 1000 / 60;
+      this.remainTime = remain > 0 ? remain.toFixed(1) : 0;
+    },
+    distanceBetween(a, b) {
+      const dx = b[0] - a[0];
+      const dy = b[1] - a[1];
+      return Math.sqrt(dx * dx + dy * dy);
+    },
+    getPositionByProgress(path, progress) {
+      const p = this.normalizeProgress(progress);
+      if (!path || path.length === 0) return [0, 0];
+      if (p <= 0) return path[0];
+      if (p >= 100) return path[path.length - 1];
+      let total = 0;
+      const segLens = [];
+      for (let i = 1; i < path.length; i++) {
+        const len = this.distanceBetween(path[i - 1], path[i]);
+        segLens.push(len);
+        total += len;
+      }
+      if (total <= 0) return path[0];
+      const target = total * (p / 100);
+      let acc = 0;
+      for (let i = 1; i < path.length; i++) {
+        const len = segLens[i - 1];
+        if (acc + len >= target) {
+          const ratio = len === 0 ? 0 : (target - acc) / len;
+          const start = path[i - 1];
+          const end = path[i];
+          return [
+            start[0] + (end[0] - start[0]) * ratio,
+            start[1] + (end[1] - start[1]) * ratio
+          ];
+        }
+        acc += len;
+      }
+      return path[path.length - 1];
+    },
+    buildRemainingPath(path, progress) {
+      if (!path || path.length === 0) return [];
+      const p = this.normalizeProgress(progress);
+      if (p <= 0) return [...path];
+      if (p >= 100) return [path[path.length - 1]];
+      const currentPos = this.getPositionByProgress(path, p);
+      let total = 0;
+      const segLens = [];
+      for (let i = 1; i < path.length; i++) {
+        const len = this.distanceBetween(path[i - 1], path[i]);
+        segLens.push(len);
+        total += len;
+      }
+      const target = total * (p / 100);
+      let acc = 0;
+      let segmentEndIndex = 1;
+      for (let i = 1; i < path.length; i++) {
+        const len = segLens[i - 1];
+        if (acc + len >= target) {
+          segmentEndIndex = i;
+          break;
+        }
+        acc += len;
+      }
+      return [currentPos, ...path.slice(segmentEndIndex)];
     },
 
     /** 关闭监控弹窗时，清理动画与定时器 */
     closeSimulation() {
+      this.syncTaskProgress(this.progress, true);
       this.simulationOpen = false;
       if (this.simulationTimer) {
         clearInterval(this.simulationTimer);
+        this.simulationTimer = null;
       }
       if (this.uavMarker) {
         this.uavMarker.stopMove(); // 终止高德 Marker 的动画
       }
+      this.hasSimulationStarted = false;
+      this.simulationPaused = false;
+      this.pauseStartedAt = null;
+      this.totalPausedMs = 0;
+      this.simulationPath = [];
+      this.lastSimulationTaskId = null;
+      this.lastSyncedProgress = -1;
+      this.movementStartAt = 0;
+      this.movementBaseProgress = 0;
+      this.movementDurationMs = 0;
+      this.progressExact = 0;
     }
   }
 }
 </script>
+
+<style scoped>
+.monitor-dashboard .el-progress__text {
+  display: none !important;
+}
+</style>

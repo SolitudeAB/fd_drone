@@ -1,6 +1,7 @@
 package com.ruoair.uav.service.impl;
 
 import java.util.List;
+import java.util.Date;
 
 import com.ruoair.common.exception.ServiceException;
 import com.ruoair.common.utils.DateUtils;
@@ -63,6 +64,11 @@ public class SysUavTaskServiceImpl implements ISysUavTaskService
     @Override
     public int insertSysUavTask(SysUavTask sysUavTask)
     {
+        validateTaskBeforeSave(sysUavTask, null);
+        sysUavTask.setTaskStatus("0");
+        if (sysUavTask.getProgress() == null) {
+            sysUavTask.setProgress(0);
+        }
         sysUavTask.setCreateTime(DateUtils.getNowDate());
         return sysUavTaskMapper.insertSysUavTask(sysUavTask);
     }
@@ -76,6 +82,20 @@ public class SysUavTaskServiceImpl implements ISysUavTaskService
     @Override
     public int updateSysUavTask(SysUavTask sysUavTask)
     {
+        if (sysUavTask.getTaskId() == null) {
+            throw new ServiceException("任务ID不能为空！");
+        }
+        SysUavTask existingTask = sysUavTaskMapper.selectSysUavTaskByTaskId(sysUavTask.getTaskId());
+        if (existingTask == null) {
+            throw new ServiceException("任务不存在！");
+        }
+        if (needsBasicTaskValidation(sysUavTask)) {
+            if (!"0".equals(existingTask.getTaskStatus())) {
+                throw new ServiceException("仅待执行任务允许修改基础信息！");
+            }
+            SysUavTask mergedTask = mergeTaskForValidation(sysUavTask, existingTask);
+            validateTaskBeforeSave(mergedTask, existingTask.getTaskId());
+        }
         sysUavTask.setUpdateTime(DateUtils.getNowDate());
         return sysUavTaskMapper.updateSysUavTask(sysUavTask);
     }
@@ -89,6 +109,10 @@ public class SysUavTaskServiceImpl implements ISysUavTaskService
     @Override
     public int deleteSysUavTaskByTaskIds(Long[] taskIds)
     {
+        for (Long taskId : taskIds) {
+            SysUavTask task = sysUavTaskMapper.selectSysUavTaskByTaskId(taskId);
+            assertTaskCanBeDeleted(task);
+        }
         return sysUavTaskMapper.deleteSysUavTaskByTaskIds(taskIds);
     }
 
@@ -101,6 +125,8 @@ public class SysUavTaskServiceImpl implements ISysUavTaskService
     @Override
     public int deleteSysUavTaskByTaskId(Long taskId)
     {
+        SysUavTask task = sysUavTaskMapper.selectSysUavTaskByTaskId(taskId);
+        assertTaskCanBeDeleted(task);
         return sysUavTaskMapper.deleteSysUavTaskByTaskId(taskId);
     }
 
@@ -271,5 +297,71 @@ public class SysUavTaskServiceImpl implements ISysUavTaskService
 
         // 注意：取消任务不生成巡航结果，直接 return
         return rows;
+    }
+
+    private void validateTaskBeforeSave(SysUavTask task, Long excludeTaskId) {
+        if (task == null) {
+            throw new ServiceException("任务数据不能为空！");
+        }
+        if (task.getEquipmentId() == null) {
+            throw new ServiceException("请选择绑定设备！");
+        }
+        if (task.getRouteId() == null) {
+            throw new ServiceException("请选择绑定航线！");
+        }
+        if (task.getStartTime() == null) {
+            throw new ServiceException("请选择任务开始时间！");
+        }
+
+        Date now = DateUtils.getNowDate();
+        if (task.getStartTime().before(now)) {
+            throw new ServiceException("任务开始时间不能早于当前时间！");
+        }
+
+        sysUavEquipmentService.checkEquipmentAvailable(task.getEquipmentId());
+
+        SysUavTask query = new SysUavTask();
+        query.setRouteId(task.getRouteId());
+        List<SysUavTask> routeTasks = sysUavTaskMapper.selectSysUavTaskList(query);
+        for (SysUavTask routeTask : routeTasks) {
+            if (excludeTaskId != null && excludeTaskId.equals(routeTask.getTaskId())) {
+                continue;
+            }
+            if (!"2".equals(routeTask.getTaskStatus()) && !"3".equals(routeTask.getTaskStatus())) {
+                throw new ServiceException("当前航线已被未完成任务占用，请更换航线！");
+            }
+        }
+    }
+
+    private SysUavTask mergeTaskForValidation(SysUavTask incoming, SysUavTask existing) {
+        SysUavTask merged = new SysUavTask();
+        merged.setTaskId(existing.getTaskId());
+        merged.setTaskName(incoming.getTaskName() != null ? incoming.getTaskName() : existing.getTaskName());
+        merged.setEquipmentId(incoming.getEquipmentId() != null ? incoming.getEquipmentId() : existing.getEquipmentId());
+        merged.setRouteId(incoming.getRouteId() != null ? incoming.getRouteId() : existing.getRouteId());
+        merged.setStartTime(incoming.getStartTime() != null ? incoming.getStartTime() : existing.getStartTime());
+        merged.setTaskStatus(incoming.getTaskStatus() != null ? incoming.getTaskStatus() : existing.getTaskStatus());
+        merged.setExecutor(incoming.getExecutor() != null ? incoming.getExecutor() : existing.getExecutor());
+        merged.setRemark(incoming.getRemark() != null ? incoming.getRemark() : existing.getRemark());
+        return merged;
+    }
+
+    private boolean needsBasicTaskValidation(SysUavTask task) {
+        return task.getTaskName() != null
+                || task.getEquipmentId() != null
+                || task.getRouteId() != null
+                || task.getStartTime() != null
+                || task.getTaskStatus() != null
+                || task.getExecutor() != null
+                || task.getRemark() != null;
+    }
+
+    private void assertTaskCanBeDeleted(SysUavTask task) {
+        if (task == null) {
+            throw new ServiceException("任务不存在或已删除！");
+        }
+        if (!"2".equals(task.getTaskStatus()) && !"3".equals(task.getTaskStatus())) {
+            throw new ServiceException("仅已完成或已取消任务允许删除！");
+        }
     }
 }
