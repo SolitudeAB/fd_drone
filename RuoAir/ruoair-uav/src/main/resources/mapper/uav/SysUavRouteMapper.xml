@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoair.uav.mapper.SysUavRouteMapper">
+    
+    <resultMap type="SysUavRoute" id="SysUavRouteResult">
+        <result property="routeId"    column="route_id"    />
+        <result property="routeName"    column="route_name"    />
+        <result property="estimatedTime"    column="estimated_time"    />
+        <result property="flightAltitude"    column="flight_altitude"    />
+        <result property="routePoints"    column="route_points"    />
+        <result property="createBy"    column="create_by"    />
+        <result property="createTime"    column="create_time"    />
+        <result property="updateBy"    column="update_by"    />
+        <result property="updateTime"    column="update_time"    />
+        <result property="remark"    column="remark"    />
+    </resultMap>
+
+    <sql id="selectSysUavRouteVo">
+        select route_id, route_name, estimated_time, flight_altitude, route_points, create_by, create_time, update_by, update_time, remark from sys_uav_route
+    </sql>
+
+    <select id="selectSysUavRouteList" parameterType="SysUavRoute" resultMap="SysUavRouteResult">
+        <include refid="selectSysUavRouteVo"/>
+        <where>  
+            <if test="routeName != null  and routeName != ''"> and route_name like concat('%', #{routeName}, '%')</if>
+        </where>
+    </select>
+    
+    <select id="selectSysUavRouteByRouteId" parameterType="Long" resultMap="SysUavRouteResult">
+        <include refid="selectSysUavRouteVo"/>
+        where route_id = #{routeId}
+    </select>
+
+    <insert id="insertSysUavRoute" parameterType="SysUavRoute" useGeneratedKeys="true" keyProperty="routeId">
+        insert into sys_uav_route
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="routeName != null and routeName != ''">route_name,</if>
+            <if test="estimatedTime != null">estimated_time,</if>
+            <if test="flightAltitude != null">flight_altitude,</if>
+            <if test="routePoints != null">route_points,</if>
+            <if test="createBy != null">create_by,</if>
+            <if test="createTime != null">create_time,</if>
+            <if test="updateBy != null">update_by,</if>
+            <if test="updateTime != null">update_time,</if>
+            <if test="remark != null">remark,</if>
+         </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="routeName != null and routeName != ''">#{routeName},</if>
+            <if test="estimatedTime != null">#{estimatedTime},</if>
+            <if test="flightAltitude != null">#{flightAltitude},</if>
+            <if test="routePoints != null">#{routePoints},</if>
+            <if test="createBy != null">#{createBy},</if>
+            <if test="createTime != null">#{createTime},</if>
+            <if test="updateBy != null">#{updateBy},</if>
+            <if test="updateTime != null">#{updateTime},</if>
+            <if test="remark != null">#{remark},</if>
+         </trim>
+    </insert>
+
+    <update id="updateSysUavRoute" parameterType="SysUavRoute">
+        update sys_uav_route
+        <trim prefix="SET" suffixOverrides=",">
+            <if test="routeName != null and routeName != ''">route_name = #{routeName},</if>
+            <if test="estimatedTime != null">estimated_time = #{estimatedTime},</if>
+            <if test="flightAltitude != null">flight_altitude = #{flightAltitude},</if>
+            <if test="routePoints != null">route_points = #{routePoints},</if>
+            <if test="createBy != null">create_by = #{createBy},</if>
+            <if test="createTime != null">create_time = #{createTime},</if>
+            <if test="updateBy != null">update_by = #{updateBy},</if>
+            <if test="updateTime != null">update_time = #{updateTime},</if>
+            <if test="remark != null">remark = #{remark},</if>
+        </trim>
+        where route_id = #{routeId}
+    </update>
+
+    <delete id="deleteSysUavRouteByRouteId" parameterType="Long">
+        delete from sys_uav_route where route_id = #{routeId}
+    </delete>
+
+    <delete id="deleteSysUavRouteByRouteIds" parameterType="String">
+        delete from sys_uav_route where route_id in 
+        <foreach item="routeId" collection="array" open="(" separator="," close=")">
+            #{routeId}
+        </foreach>
+    </delete>
+</mapper>
