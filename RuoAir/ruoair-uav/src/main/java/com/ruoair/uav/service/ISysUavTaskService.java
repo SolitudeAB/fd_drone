@@ -2,6 +2,7 @@ package com.ruoair.uav.service;
 
 import java.util.List;
 import com.ruoair.uav.domain.SysUavTask;
+import org.springframework.transaction.annotation.Transactional;
 
 /**
  * 巡航任务Service接口
@@ -87,4 +88,6 @@ public interface ISysUavTaskService
      * @return 结果
      */
     public int cancelTask(Long taskId);
+
+    public int pauseTask(Long taskId);
 }

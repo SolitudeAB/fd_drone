@@ -1,5 +1,6 @@
 package com.ruoair.uav.domain;
 
+import java.util.List;
 import org.apache.commons.lang3.builder.ToStringBuilder;
 import org.apache.commons.lang3.builder.ToStringStyle;
 import com.ruoair.common.annotation.Excel;
@@ -34,9 +35,20 @@ public class SysUavEquipment extends BaseEntity
     @Excel(name = "续航时长")
     private Long flightDuration;
 
+    /** 摄像头参数 */
+    @Excel(name = "摄像头参数")
+    private String cameraParams;
+
+    /** 归属人 */
+    @Excel(name = "归属人")
+    private String owner;
+
     /** 设备状态 */
     @Excel(name = "设备状态")
     private String status;
+
+    /** 关联历史任务 */
+    private List<SysUavTask> relatedTasks;
 
     public void setEquipmentId(Long equipmentId) 
     {
@@ -88,6 +100,26 @@ public class SysUavEquipment extends BaseEntity
         return flightDuration;
     }
 
+    public void setCameraParams(String cameraParams)
+    {
+        this.cameraParams = cameraParams;
+    }
+
+    public String getCameraParams()
+    {
+        return cameraParams;
+    }
+
+    public void setOwner(String owner)
+    {
+        this.owner = owner;
+    }
+
+    public String getOwner()
+    {
+        return owner;
+    }
+
     public void setStatus(String status) 
     {
         this.status = status;
@@ -98,6 +130,16 @@ public class SysUavEquipment extends BaseEntity
         return status;
     }
 
+    public void setRelatedTasks(List<SysUavTask> relatedTasks)
+    {
+        this.relatedTasks = relatedTasks;
+    }
+
+    public List<SysUavTask> getRelatedTasks()
+    {
+        return relatedTasks;
+    }
+
     @Override
     public String toString() {
         return new ToStringBuilder(this,ToStringStyle.MULTI_LINE_STYLE)
@@ -106,6 +148,8 @@ public class SysUavEquipment extends BaseEntity
             .append("equipmentName", getEquipmentName())
             .append("equipmentModel", getEquipmentModel())
             .append("flightDuration", getFlightDuration())
+            .append("cameraParams", getCameraParams())
+            .append("owner", getOwner())
             .append("status", getStatus())
             .append("createBy", getCreateBy())
             .append("createTime", getCreateTime())

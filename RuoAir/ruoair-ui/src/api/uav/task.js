@@ -66,3 +66,10 @@ export function cancelTask(taskId) {
     method: 'put'
   })
 }
+
+export function pauseTask(taskId) {
+  return request({
+    url: '/uav/task/pause/' + taskId,
+    method: 'put'
+  })
+}

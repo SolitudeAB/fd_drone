@@ -5,6 +5,7 @@ import java.util.Date;
 
 import com.ruoair.common.exception.ServiceException;
 import com.ruoair.common.utils.DateUtils;
+import org.apache.commons.lang3.StringUtils;
 import com.ruoair.uav.domain.SysUavEquipment;
 import com.ruoair.uav.domain.SysUavResult;
 import com.ruoair.uav.domain.SysUavRoute;
@@ -69,6 +70,7 @@ public class SysUavTaskServiceImpl implements ISysUavTaskService
         if (sysUavTask.getProgress() == null) {
             sysUavTask.setProgress(0);
         }
+        appendStatusHistory(sysUavTask, "待执行", "创建任务");
         sysUavTask.setCreateTime(DateUtils.getNowDate());
         return sysUavTaskMapper.insertSysUavTask(sysUavTask);
     }
@@ -168,7 +170,11 @@ public class SysUavTaskServiceImpl implements ISysUavTaskService
         // 5. 更新任务信息
         task.setTaskStatus("1"); // 1=执行中
         task.setStartTime(DateUtils.getNowDate()); // actualStartTime
-        task.setProgress(0); // 初始进度0
+        // 如果是恢复任务，保留原有进度
+        if (task.getProgress() == null) {
+            task.setProgress(0);
+        }
+        appendStatusHistory(task, "执行中", "开始任务");
         task.setUpdateTime(DateUtils.getNowDate());
 
         sysUavTaskMapper.updateSysUavTask(task);
@@ -199,6 +205,7 @@ public class SysUavTaskServiceImpl implements ISysUavTaskService
         task.setTaskStatus("2");
         task.setEndTime(DateUtils.getNowDate());
         task.setProgress(100);
+        appendStatusHistory(task, "已完成", "完成任务");
         task.setUpdateTime(DateUtils.getNowDate());
         int taskResult = sysUavTaskMapper.updateSysUavTask(task);
 
@@ -217,7 +224,13 @@ public class SysUavTaskServiceImpl implements ISysUavTaskService
         result.setEquipmentName(equipment != null ? equipment.getEquipmentName() : "");
         result.setRouteName(route != null ? route.getRouteName() : "");
         result.setExecutor(task.getExecutor());
-        result.setOverview("本次巡航任务正常完成。");
+        result.setOverview("本次巡防任务正常完成，无异常情况");
+        result.setCompletedTime(task.getEndTime());
+        if (task.getStartTime() != null && task.getEndTime() != null) {
+            long durationMinutes = Math.max(1L, (task.getEndTime().getTime() - task.getStartTime().getTime()) / (60 * 1000));
+            result.setPatrolDuration(durationMinutes);
+        }
+        result.setRoutePoints(route != null ? route.getRoutePoints() : null);
         result.setCreateTime(DateUtils.getNowDate());
 
         sysUavResultMapper.insertSysUavResult(result);
@@ -233,7 +246,8 @@ public class SysUavTaskServiceImpl implements ISysUavTaskService
     public void updateProgress(Long taskId, Integer progress) {
         SysUavTask task = new SysUavTask();
         task.setTaskId(taskId);
-        task.setProgress(progress);
+        int safeProgress = Math.max(0, Math.min(progress == null ? 0 : progress, 100));
+        task.setProgress(safeProgress);
         task.setUpdateTime(DateUtils.getNowDate());
         sysUavTaskMapper.updateSysUavTask(task);
     }
@@ -284,6 +298,8 @@ public class SysUavTaskServiceImpl implements ISysUavTaskService
 
         // 1. 任务状态改为“已取消(3)”
         task.setTaskStatus("3");
+        task.setEndTime(DateUtils.getNowDate());
+        appendStatusHistory(task, "已取消", "取消任务");
         task.setUpdateTime(DateUtils.getNowDate());
         int rows = sysUavTaskMapper.updateSysUavTask(task);
 
@@ -308,6 +324,9 @@ public class SysUavTaskServiceImpl implements ISysUavTaskService
         }
         if (task.getRouteId() == null) {
             throw new ServiceException("请选择绑定航线！");
+        }
+        if (StringUtils.isBlank(task.getTaskName())) {
+            throw new ServiceException("任务名称不能为空！");
         }
         if (task.getStartTime() == null) {
             throw new ServiceException("请选择任务开始时间！");
@@ -342,6 +361,7 @@ public class SysUavTaskServiceImpl implements ISysUavTaskService
         merged.setStartTime(incoming.getStartTime() != null ? incoming.getStartTime() : existing.getStartTime());
         merged.setTaskStatus(incoming.getTaskStatus() != null ? incoming.getTaskStatus() : existing.getTaskStatus());
         merged.setExecutor(incoming.getExecutor() != null ? incoming.getExecutor() : existing.getExecutor());
+        merged.setTaskDescription(incoming.getTaskDescription() != null ? incoming.getTaskDescription() : existing.getTaskDescription());
         merged.setRemark(incoming.getRemark() != null ? incoming.getRemark() : existing.getRemark());
         return merged;
     }
@@ -353,6 +373,7 @@ public class SysUavTaskServiceImpl implements ISysUavTaskService
                 || task.getStartTime() != null
                 || task.getTaskStatus() != null
                 || task.getExecutor() != null
+                || task.getTaskDescription() != null
                 || task.getRemark() != null;
     }
 
@@ -363,5 +384,35 @@ public class SysUavTaskServiceImpl implements ISysUavTaskService
         if (!"2".equals(task.getTaskStatus()) && !"3".equals(task.getTaskStatus())) {
             throw new ServiceException("仅已完成或已取消任务允许删除！");
         }
+    }
+
+    private void appendStatusHistory(SysUavTask task, String statusLabel, String actionLabel)
+    {
+        String now = DateUtils.getTime();
+        String line = now + "|" + statusLabel + "|" + actionLabel;
+        if (StringUtils.isBlank(task.getStatusHistory()))
+        {
+            task.setStatusHistory(line);
+            return;
+        }
+        task.setStatusHistory(task.getStatusHistory() + "\n" + line);
+    }
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public int pauseTask(Long taskId) {
+        SysUavTask task = sysUavTaskMapper.selectSysUavTaskByTaskId(taskId);
+
+        // 1. 状态改为“待执行(0)”
+        task.setTaskStatus("0");
+        appendStatusHistory(task, "待执行", "暂停任务并释放设备");
+        int rows = sysUavTaskMapper.updateSysUavTask(task);
+
+        // 2. 释放设备，状态恢复为“空闲(0)”
+        SysUavEquipment equipment = sysUavEquipmentMapper.selectSysUavEquipmentByEquipmentId(task.getEquipmentId());
+        if (equipment != null) {
+            equipment.setStatus("0");
+            sysUavEquipmentMapper.updateSysUavEquipment(equipment);
+        }
+        return rows;
     }
 }

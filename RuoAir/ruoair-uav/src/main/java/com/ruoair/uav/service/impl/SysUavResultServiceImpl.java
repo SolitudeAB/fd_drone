@@ -1,7 +1,9 @@
 package com.ruoair.uav.service.impl;
 
 import java.util.List;
+import com.ruoair.common.exception.ServiceException;
 import com.ruoair.common.utils.DateUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import com.ruoair.uav.mapper.SysUavResultMapper;
@@ -53,6 +55,7 @@ public class SysUavResultServiceImpl implements ISysUavResultService
     @Override
     public int insertSysUavResult(SysUavResult sysUavResult)
     {
+        validateResult(sysUavResult);
         sysUavResult.setCreateTime(DateUtils.getNowDate());
         return sysUavResultMapper.insertSysUavResult(sysUavResult);
     }
@@ -66,6 +69,7 @@ public class SysUavResultServiceImpl implements ISysUavResultService
     @Override
     public int updateSysUavResult(SysUavResult sysUavResult)
     {
+        validateResult(sysUavResult);
         sysUavResult.setUpdateTime(DateUtils.getNowDate());
         return sysUavResultMapper.updateSysUavResult(sysUavResult);
     }
@@ -92,5 +96,13 @@ public class SysUavResultServiceImpl implements ISysUavResultService
     public int deleteSysUavResultByResultId(Long resultId)
     {
         return sysUavResultMapper.deleteSysUavResultByResultId(resultId);
+    }
+
+    private void validateResult(SysUavResult sysUavResult)
+    {
+        if (sysUavResult == null || StringUtils.isBlank(sysUavResult.getOverview()))
+        {
+            throw new ServiceException("巡航概述不能为空！");
+        }
     }
 }

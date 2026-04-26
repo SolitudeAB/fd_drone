@@ -1,11 +1,14 @@
 package com.ruoair.uav.service.impl;
 
 import java.util.List;
+import com.ruoair.common.exception.ServiceException;
 import com.ruoair.common.utils.DateUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import com.ruoair.uav.mapper.SysUavRouteMapper;
+import com.ruoair.uav.mapper.SysUavTaskMapper;
 import com.ruoair.uav.domain.SysUavRoute;
+import com.ruoair.uav.domain.SysUavTask;
 import com.ruoair.uav.service.ISysUavRouteService;
 
 /**
@@ -20,6 +23,9 @@ public class SysUavRouteServiceImpl implements ISysUavRouteService
     @Autowired
     private SysUavRouteMapper sysUavRouteMapper;
 
+    @Autowired
+    private SysUavTaskMapper sysUavTaskMapper;
+
     /**
      * 查询巡航航线
      * 
@@ -29,7 +35,14 @@ public class SysUavRouteServiceImpl implements ISysUavRouteService
     @Override
     public SysUavRoute selectSysUavRouteByRouteId(Long routeId)
     {
-        return sysUavRouteMapper.selectSysUavRouteByRouteId(routeId);
+        SysUavRoute route = sysUavRouteMapper.selectSysUavRouteByRouteId(routeId);
+        if (route != null)
+        {
+            SysUavTask query = new SysUavTask();
+            query.setRouteId(routeId);
+            route.setRelatedTasks(sysUavTaskMapper.selectSysUavTaskList(query));
+        }
+        return route;
     }
 
     /**
@@ -79,6 +92,10 @@ public class SysUavRouteServiceImpl implements ISysUavRouteService
     @Override
     public int deleteSysUavRouteByRouteIds(Long[] routeIds)
     {
+        for (Long routeId : routeIds)
+        {
+            assertRouteCanDelete(routeId);
+        }
         return sysUavRouteMapper.deleteSysUavRouteByRouteIds(routeIds);
     }
 
@@ -91,6 +108,21 @@ public class SysUavRouteServiceImpl implements ISysUavRouteService
     @Override
     public int deleteSysUavRouteByRouteId(Long routeId)
     {
+        assertRouteCanDelete(routeId);
         return sysUavRouteMapper.deleteSysUavRouteByRouteId(routeId);
+    }
+
+    private void assertRouteCanDelete(Long routeId)
+    {
+        SysUavTask query = new SysUavTask();
+        query.setRouteId(routeId);
+        List<SysUavTask> tasks = sysUavTaskMapper.selectSysUavTaskList(query);
+        for (SysUavTask task : tasks)
+        {
+            if (!"2".equals(task.getTaskStatus()) && !"3".equals(task.getTaskStatus()))
+            {
+                throw new ServiceException("航线【" + task.getRouteName() + "】存在未完成任务，禁止删除！");
+            }
+        }
     }
 }

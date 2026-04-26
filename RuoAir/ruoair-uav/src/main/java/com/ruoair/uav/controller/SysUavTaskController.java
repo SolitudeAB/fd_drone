@@ -135,4 +135,9 @@ public class SysUavTaskController extends BaseController
     {
         return toAjax(sysUavTaskService.cancelTask(taskId));
     }
+
+    @PutMapping("/pause/{taskId}")
+    public AjaxResult pauseTask(@PathVariable Long taskId) {
+        return toAjax(sysUavTaskService.pauseTask(taskId));
+    }
 }

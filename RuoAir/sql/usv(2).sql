@@ -13,6 +13,17 @@ ALTER TABLE sys_uav_task AUTO_INCREMENT = 1;
 ALTER TABLE sys_uav_result AUTO_INCREMENT = 1;
 
 -- ----------------------------
+-- 扩展字段（如已存在请忽略执行报错）
+-- ----------------------------
+ALTER TABLE sys_uav_equipment ADD COLUMN camera_params varchar(255) NULL COMMENT '摄像头参数';
+ALTER TABLE sys_uav_equipment ADD COLUMN owner varchar(64) NULL COMMENT '归属人';
+ALTER TABLE sys_uav_task ADD COLUMN task_description varchar(500) NULL COMMENT '任务描述';
+ALTER TABLE sys_uav_task ADD COLUMN status_history text NULL COMMENT '状态变更记录';
+ALTER TABLE sys_uav_result ADD COLUMN patrol_duration bigint NULL COMMENT '巡防时长(分钟)';
+ALTER TABLE sys_uav_result ADD COLUMN completed_time datetime NULL COMMENT '完成时间';
+ALTER TABLE sys_uav_result ADD COLUMN route_points longtext NULL COMMENT '航线点位快照';
+
+-- ----------------------------
 -- 1. 无人机设备表 (20条)
 -- ----------------------------
 INSERT INTO sys_uav_equipment (equipment_code, equipment_name, equipment_model, flight_duration, status, create_by, create_time, update_by, update_time, remark) VALUES

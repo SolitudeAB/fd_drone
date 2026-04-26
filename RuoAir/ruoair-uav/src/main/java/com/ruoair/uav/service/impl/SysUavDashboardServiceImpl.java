@@ -30,6 +30,15 @@ public class SysUavDashboardServiceImpl implements ISysUavDashboardService {
 
         // 2. 左侧饼图：查询设备状态分布 (返回格式: [{name: '正常', value: 10}, ...])
         List<Map<String, Object>> equipmentStatusData = dashboardMapper.selectEquipmentStatusGroup();
+        for (Map<String, Object> item : equipmentStatusData)
+        {
+            Object statusCode = item.get("name");
+            if (statusCode == null)
+            {
+                continue;
+            }
+            item.put("name", mapStatusLabel(String.valueOf(statusCode)));
+        }
         result.put("pieData", equipmentStatusData);
 
         // 3. 右侧折线图：查询近七天任务趋势
@@ -38,5 +47,26 @@ public class SysUavDashboardServiceImpl implements ISysUavDashboardService {
         result.put("lineData", taskTrendData);
 
         return result;
+    }
+
+    private String mapStatusLabel(String statusCode)
+    {
+        if ("0".equals(statusCode))
+        {
+            return "正常";
+        }
+        if ("1".equals(statusCode))
+        {
+            return "维修中";
+        }
+        if ("2".equals(statusCode))
+        {
+            return "已报废";
+        }
+        if ("3".equals(statusCode))
+        {
+            return "任务中";
+        }
+        return statusCode;
     }
 }

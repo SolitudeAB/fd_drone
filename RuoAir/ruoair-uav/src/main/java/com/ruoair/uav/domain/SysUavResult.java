@@ -1,5 +1,7 @@
 package com.ruoair.uav.domain;
 
+import java.util.Date;
+import com.fasterxml.jackson.annotation.JsonFormat;
 import org.apache.commons.lang3.builder.ToStringBuilder;
 import org.apache.commons.lang3.builder.ToStringStyle;
 import com.ruoair.common.annotation.Excel;
@@ -31,6 +33,7 @@ public class SysUavResult extends BaseEntity
     private String overview;
 
     /** 发现情况 */
+    @Excel(name = "发现情况")
     private String findings;
 
     /** 任务名称（快照） */
@@ -49,6 +52,15 @@ public class SysUavResult extends BaseEntity
     @Excel(name = "执行人")
     private String executor;
 
+    /** 巡防时长(分钟) */
+    @Excel(name = "巡防时长(分钟)")
+    private Long patrolDuration;
+
+    /** 完成时间 */
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+    @Excel(name = "完成时间", width = 30, dateFormat = "yyyy-MM-dd HH:mm:ss")
+    private Date completedTime;
+
     /** 处理情况 */
     @Excel(name = "处理情况")
     private String handlingInfo;
@@ -56,6 +68,9 @@ public class SysUavResult extends BaseEntity
     /** AI图片路径 */
     @Excel(name = "AI图片路径")
     private String aiImageUrl;
+
+    /** 航线点位快照 */
+    private String routePoints;
 
     public void setResultId(Long resultId) 
     {
@@ -147,6 +162,26 @@ public class SysUavResult extends BaseEntity
         return executor;
     }
 
+    public void setPatrolDuration(Long patrolDuration)
+    {
+        this.patrolDuration = patrolDuration;
+    }
+
+    public Long getPatrolDuration()
+    {
+        return patrolDuration;
+    }
+
+    public void setCompletedTime(Date completedTime)
+    {
+        this.completedTime = completedTime;
+    }
+
+    public Date getCompletedTime()
+    {
+        return completedTime;
+    }
+
     public void setHandlingInfo(String handlingInfo)
     {
         this.handlingInfo = handlingInfo;
@@ -167,14 +202,32 @@ public class SysUavResult extends BaseEntity
         return aiImageUrl;
     }
 
+    public void setRoutePoints(String routePoints)
+    {
+        this.routePoints = routePoints;
+    }
+
+    public String getRoutePoints()
+    {
+        return routePoints;
+    }
+
     @Override
     public String toString() {
         return new ToStringBuilder(this,ToStringStyle.MULTI_LINE_STYLE)
             .append("resultId", getResultId())
             .append("resultCode", getResultCode())
             .append("taskId", getTaskId())
+            .append("taskName", getTaskName())
+            .append("equipmentName", getEquipmentName())
+            .append("routeName", getRouteName())
+            .append("executor", getExecutor())
+            .append("patrolDuration", getPatrolDuration())
+            .append("completedTime", getCompletedTime())
             .append("overview", getOverview())
             .append("findings", getFindings())
+            .append("handlingInfo", getHandlingInfo())
+            .append("routePoints", getRoutePoints())
             .append("createBy", getCreateBy())
             .append("createTime", getCreateTime())
             .append("updateBy", getUpdateBy())

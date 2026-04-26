@@ -4,6 +4,7 @@ import com.ruoair.common.core.controller.BaseController;
 import com.ruoair.common.core.domain.AjaxResult;
 import com.ruoair.uav.service.ISysUavDashboardService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -23,6 +24,7 @@ public class SysUavDashboardController extends BaseController {
     /**
      * 获取大盘所有统计数据
      */
+    @PreAuthorize("@ss.hasPermi('uav:task:list')")
     @GetMapping("/stats")
     public AjaxResult getStats() {
         // 调用 Service 获取聚合好的数据

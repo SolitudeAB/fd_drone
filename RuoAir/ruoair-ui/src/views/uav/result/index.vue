@@ -1,20 +1,27 @@
 <template>
   <div class="app-container">
-    <el-form :model="queryParams" ref="queryForm" size="small" :inline="true" v-show="showSearch" label-width="68px">
+    <el-form :model="queryParams" ref="queryForm" size="small" :inline="true" v-show="showSearch" label-width="88px">
       <el-form-item label="结果编号" prop="resultCode">
-        <el-input
-          v-model="queryParams.resultCode"
-          placeholder="请输入结果编号"
-          clearable
-          @keyup.enter.native="handleQuery"
-        />
+        <el-input v-model="queryParams.resultCode" placeholder="请输入结果编号" clearable @keyup.enter.native="handleQuery" />
       </el-form-item>
-      <el-form-item label="任务ID" prop="taskId">
-        <el-input
-          v-model="queryParams.taskId"
-          placeholder="请输入任务ID"
-          clearable
-          @keyup.enter.native="handleQuery"
+      <el-form-item label="任务名称" prop="taskName">
+        <el-input v-model="queryParams.taskName" placeholder="请输入任务名称" clearable @keyup.enter.native="handleQuery" />
+      </el-form-item>
+      <el-form-item label="设备名称" prop="equipmentName">
+        <el-input v-model="queryParams.equipmentName" placeholder="请输入设备名称" clearable @keyup.enter.native="handleQuery" />
+      </el-form-item>
+      <el-form-item label="执行人" prop="executor">
+        <el-input v-model="queryParams.executor" placeholder="请输入执行人" clearable @keyup.enter.native="handleQuery" />
+      </el-form-item>
+      <el-form-item label="完成时间">
+        <el-date-picker
+          v-model="daterangeCompletedTime"
+          style="width: 240px"
+          value-format="yyyy-MM-dd"
+          type="daterange"
+          range-separator="-"
+          start-placeholder="开始日期"
+          end-placeholder="结束日期"
         />
       </el-form-item>
       <el-form-item>
@@ -25,183 +32,118 @@
 
     <el-row :gutter="10" class="mb8">
       <el-col :span="1.5">
-        <el-button
-          type="primary"
-          plain
-          icon="el-icon-plus"
-          size="mini"
-          @click="handleAdd"
-          v-hasPermi="['uav:result:add']"
-        >新增</el-button>
+        <el-button type="primary" plain icon="el-icon-plus" size="mini" @click="handleAdd" v-hasPermi="['uav:result:add']">新增</el-button>
       </el-col>
       <el-col :span="1.5">
-        <el-button
-          type="success"
-          plain
-          icon="el-icon-edit"
-          size="mini"
-          :disabled="single"
-          @click="handleUpdate"
-          v-hasPermi="['uav:result:edit']"
-        >修改</el-button>
+        <el-button type="success" plain icon="el-icon-edit" size="mini" :disabled="single" @click="handleUpdate" v-hasPermi="['uav:result:edit']">修改</el-button>
       </el-col>
       <el-col :span="1.5">
-        <el-button
-          type="danger"
-          plain
-          icon="el-icon-delete"
-          size="mini"
-          :disabled="multiple"
-          @click="handleDelete"
-          v-hasPermi="['uav:result:remove']"
-        >删除</el-button>
+        <el-button type="danger" plain icon="el-icon-delete" size="mini" :disabled="multiple" @click="handleDelete" v-hasPermi="['uav:result:remove']">删除</el-button>
       </el-col>
       <el-col :span="1.5">
-        <el-button
-          type="warning"
-          plain
-          icon="el-icon-download"
-          size="mini"
-          @click="handleExport"
-          v-hasPermi="['uav:result:export']"
-        >导出</el-button>
+        <el-button type="warning" plain icon="el-icon-download" size="mini" @click="handleExport" v-hasPermi="['uav:result:export']">导出</el-button>
       </el-col>
       <right-toolbar :showSearch.sync="showSearch" @queryTable="getList"></right-toolbar>
     </el-row>
 
     <el-table v-loading="loading" :data="resultList" @selection-change="handleSelectionChange">
       <el-table-column type="selection" width="55" align="center" />
-      <el-table-column label="结果ID" align="center" prop="resultId" />
-      <el-table-column label="结果编号" align="center" prop="resultCode" />
-      <el-table-column label="任务ID" align="center" prop="taskId" />
-      <el-table-column label="任务名称" align="center" prop="taskName" />
-      <el-table-column label="设备名称" align="center" prop="equipmentName" />
-      <el-table-column label="航线名称" align="center" prop="routeName" />
-      <el-table-column label="执行人" align="center" prop="executor" />
-      <el-table-column label="处理情况" align="center" prop="handlingInfo" show-overflow-tooltip />
-      <el-table-column label="AI识别图片" align="center" prop="aiImageUrl" width="100">
-        <template slot-scope="scope">
-          <el-image
-            v-if="scope.row.aiImageUrl"
-            :src="scope.row.aiImageUrl"
-            :preview-src-list="[scope.row.aiImageUrl]"
-            fit="cover"
-            style="width: 50px; height: 50px; border-radius: 4px; cursor: pointer;"
-          />
-          <span v-else>-</span>
-        </template>
+      <el-table-column label="结果编号" align="center" prop="resultCode" min-width="130" />
+      <el-table-column label="任务名称" align="center" prop="taskName" min-width="150" show-overflow-tooltip />
+      <el-table-column label="设备名称" align="center" prop="equipmentName" min-width="120" />
+      <el-table-column label="航线名称" align="center" prop="routeName" min-width="120" />
+      <el-table-column label="巡防时长(分钟)" align="center" prop="patrolDuration" width="130" />
+      <el-table-column label="完成时间" align="center" prop="completedTime" width="160">
+        <template slot-scope="scope">{{ parseTime(scope.row.completedTime) }}</template>
       </el-table-column>
-      <el-table-column label="巡航概述" align="center" prop="overview" />
-      <el-table-column label="操作" align="center" class-name="small-padding fixed-width">
+      <el-table-column label="执行人" align="center" prop="executor" width="100" />
+      <el-table-column label="巡防概述" align="center" prop="overview" min-width="200" show-overflow-tooltip />
+      <el-table-column label="操作" align="center" class-name="small-padding fixed-width" width="280">
         <template slot-scope="scope">
-          <el-button
-            size="mini"
-            type="text"
-            icon="el-icon-map-location"
-            @click="handleViewMap(scope.row)"
-          >查看航线</el-button>
-          <el-button
-            size="mini"
-            type="text"
-            icon="el-icon-edit"
-            @click="handleUpdate(scope.row)"
-            v-hasPermi="['uav:result:edit']"
-          >修改</el-button>
-          <el-button
-            size="mini"
-            type="text"
-            icon="el-icon-delete"
-            @click="handleDelete(scope.row)"
-            v-hasPermi="['uav:result:remove']"
-          >删除</el-button>
+          <el-button size="mini" type="text" icon="el-icon-view" @click="handleDetail(scope.row)">详情</el-button>
+          <el-button size="mini" type="text" icon="el-icon-map-location" @click="handleViewMap(scope.row)">航线</el-button>
+          <el-button size="mini" type="text" icon="el-icon-edit" @click="handleUpdate(scope.row)" v-hasPermi="['uav:result:edit']">修改</el-button>
+          <el-button size="mini" type="text" icon="el-icon-delete" @click="handleDelete(scope.row)" v-hasPermi="['uav:result:remove']">删除</el-button>
         </template>
       </el-table-column>
     </el-table>
 
-    <pagination
-      v-show="total>0"
-      :total="total"
-      :page.sync="queryParams.pageNum"
-      :limit.sync="queryParams.pageSize"
-      @pagination="getList"
-    />
+    <pagination v-show="total>0" :total="total" :page.sync="queryParams.pageNum" :limit.sync="queryParams.pageSize" @pagination="getList" />
+
+    <el-dialog title="结果详情" :visible.sync="detailOpen" width="900px" append-to-body>
+      <el-descriptions :column="2" border size="small" v-if="detailForm.resultId">
+        <el-descriptions-item label="结果编号">{{ detailForm.resultCode }}</el-descriptions-item>
+        <el-descriptions-item label="任务名称">{{ detailForm.taskName }}</el-descriptions-item>
+        <el-descriptions-item label="设备名称">{{ detailForm.equipmentName }}</el-descriptions-item>
+        <el-descriptions-item label="航线名称">{{ detailForm.routeName }}</el-descriptions-item>
+        <el-descriptions-item label="执行人">{{ detailForm.executor || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="巡防时长">{{ detailForm.patrolDuration || '-' }} 分钟</el-descriptions-item>
+        <el-descriptions-item label="完成时间">{{ parseTime(detailForm.completedTime) || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="巡防概述" :span="2">{{ detailForm.overview || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="发现情况" :span="2">{{ detailForm.findings || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="处理情况" :span="2">{{ detailForm.handlingInfo || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="备注" :span="2">{{ detailForm.remark || '-' }}</el-descriptions-item>
+      </el-descriptions>
+      <div v-if="detailForm.aiImageUrl" class="detail-title">图片</div>
+      <el-image
+        v-if="detailForm.aiImageUrl"
+        :src="detailForm.aiImageUrl"
+        :preview-src-list="[detailForm.aiImageUrl]"
+        fit="cover"
+        style="width: 120px; height: 120px; border-radius: 4px;"
+      />
+    </el-dialog>
 
     <el-dialog title="航线轨迹预览" :visible.sync="mapOpen" width="800px" append-to-body @opened="initEchoMap">
       <div style="margin-bottom: 10px; color: #606266; font-size: 14px;">
-        <strong>当前任务：</strong>{{ currentTaskName }}
+        <strong>当前结果：</strong>{{ currentTaskName }}
       </div>
-      <div id="map-echo-container" style="width: 100%; height: 450px; border: 1px solid #DCDFE6; border-radius: 4px;"></div>
+      <div id="map-echo-container" class="map-box"></div>
     </el-dialog>
 
-    <!-- 添加或修改巡航结果对话框 -->
-    <el-dialog :title="title" :visible.sync="open" width="600px" append-to-body>
+    <el-dialog :title="title" :visible.sync="open" width="700px" append-to-body>
       <el-form ref="form" :model="form" :rules="rules" label-width="100px">
-        <el-row>
-          <el-col :span="24">
-            <el-form-item label="结果编号" prop="resultCode">
-              <el-input v-model="form.resultCode" placeholder="请输入结果编号" :disabled="form.resultId != null" />
-            </el-form-item>
-          </el-col>
-          <el-col :span="24">
-            <el-form-item label="任务ID" prop="taskId">
-              <el-input v-model="form.taskId" placeholder="请输入任务ID" :disabled="form.resultId != null" />
-            </el-form-item>
-          </el-col>
-          <!-- 快照字段（只读展示） -->
-          <el-col :span="24">
-            <el-form-item label="任务名称">
-              <el-input v-model="form.taskName" placeholder="自动获取" disabled />
-            </el-form-item>
-          </el-col>
-          <el-col :span="24">
-            <el-form-item label="设备名称">
-              <el-input v-model="form.equipmentName" placeholder="自动获取" disabled />
-            </el-form-item>
-          </el-col>
-          <el-col :span="24">
-            <el-form-item label="航线名称">
-              <el-input v-model="form.routeName" placeholder="自动获取" disabled />
-            </el-form-item>
-          </el-col>
-          <el-col :span="24">
-            <el-form-item label="执行人">
-              <el-input v-model="form.executor" placeholder="自动获取" disabled />
-            </el-form-item>
-          </el-col>
-          <el-col :span="24">
-            <el-form-item label="巡航概述" prop="overview">
-              <el-input v-model="form.overview" type="textarea" placeholder="请输入内容" />
-            </el-form-item>
-          </el-col>
-          <el-col :span="24">
-            <el-form-item label="发现情况" prop="findings">
-              <el-input v-model="form.findings" type="textarea" placeholder="请输入内容" />
-            </el-form-item>
-          </el-col>
-          <el-col :span="24">
-            <el-form-item label="处理情况" prop="handlingInfo">
-              <el-input v-model="form.handlingInfo" type="textarea" placeholder="请输入处理情况" />
-            </el-form-item>
-          </el-col>
-          <el-col :span="24">
-            <el-form-item label="AI识别图片" prop="aiImageUrl">
-              <el-input v-model="form.aiImageUrl" placeholder="请输入图片URL" />
-              <div v-if="form.aiImageUrl" style="margin-top: 10px;">
-                <el-image
-                  :src="form.aiImageUrl"
-                  :preview-src-list="[form.aiImageUrl]"
-                  fit="cover"
-                  style="width: 100px; height: 100px; border-radius: 4px;"
-                />
-              </div>
-            </el-form-item>
-          </el-col>
-          <el-col :span="24">
-            <el-form-item label="备注" prop="remark">
-              <el-input v-model="form.remark" type="textarea" placeholder="请输入内容" />
-            </el-form-item>
-          </el-col>
-        </el-row>
+        <el-form-item label="结果编号" prop="resultCode">
+          <el-input v-model="form.resultCode" placeholder="请输入结果编号" :disabled="form.resultId != null" />
+        </el-form-item>
+        <el-form-item label="关联任务" prop="taskId">
+          <el-select v-model="form.taskId" filterable placeholder="请选择任务" style="width: 100%;" :disabled="form.resultId != null">
+            <el-option v-for="item in taskOptions" :key="item.taskId" :label="item.taskName" :value="item.taskId" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="任务名称">
+          <el-input v-model="form.taskName" disabled />
+        </el-form-item>
+        <el-form-item label="设备名称">
+          <el-input v-model="form.equipmentName" disabled />
+        </el-form-item>
+        <el-form-item label="航线名称">
+          <el-input v-model="form.routeName" disabled />
+        </el-form-item>
+        <el-form-item label="执行人">
+          <el-input v-model="form.executor" disabled />
+        </el-form-item>
+        <el-form-item label="巡防时长">
+          <el-input-number v-model="form.patrolDuration" :min="0" :precision="0" style="width: 100%;" />
+        </el-form-item>
+        <el-form-item label="完成时间" prop="completedTime">
+          <el-date-picker v-model="form.completedTime" type="datetime" value-format="yyyy-MM-dd HH:mm:ss" placeholder="请选择完成时间" style="width: 100%;" />
+        </el-form-item>
+        <el-form-item label="巡防概述" prop="overview">
+          <el-input v-model="form.overview" type="textarea" :rows="3" placeholder="请输入内容" />
+        </el-form-item>
+        <el-form-item label="发现情况" prop="findings">
+          <el-input v-model="form.findings" type="textarea" :rows="3" placeholder="请输入内容" />
+        </el-form-item>
+        <el-form-item label="处理情况" prop="handlingInfo">
+          <el-input v-model="form.handlingInfo" type="textarea" :rows="3" placeholder="请输入处理情况" />
+        </el-form-item>
+        <el-form-item label="AI识别图片" prop="aiImageUrl">
+          <el-input v-model="form.aiImageUrl" placeholder="请输入图片URL" />
+        </el-form-item>
+        <el-form-item label="备注" prop="remark">
+          <el-input v-model="form.remark" type="textarea" placeholder="请输入内容" />
+        </el-form-item>
       </el-form>
       <div slot="footer" class="dialog-footer">
         <el-button type="primary" @click="submitForm">确 定</el-button>
@@ -213,79 +155,88 @@
 
 <script>
 import { listResult, getResult, delResult, addResult, updateResult } from "@/api/uav/result"
-import { getTask } from "@/api/uav/task";   // 需引入获取任务的方法
-import { getRoute } from "@/api/uav/route"; // 需引入获取航线的方法
-import AMapLoader from '@amap/amap-jsapi-loader';
+import { listTask, getTask } from "@/api/uav/task"
+import { getRoute } from "@/api/uav/route"
+import AMapLoader from '@amap/amap-jsapi-loader'
+
+const AMAP_KEY = process.env.VUE_APP_AMAP_KEY || "3e12b539ccc9cec93cc71e8ce8a65306"
 
 export default {
   name: "Result",
   data() {
     return {
-      // 遮罩层
       loading: true,
-      // 选中数组
       ids: [],
-      // 非单个禁用
       single: true,
-      // 非多个禁用
       multiple: true,
-      // 显示搜索条件
       showSearch: true,
-      // 总条数
       total: 0,
-      // 巡航结果表格数据
       resultList: [],
-      // 弹出层标题
       title: "",
-      // 是否显示弹出层
       open: false,
-      // 查询参数
+      detailOpen: false,
+      daterangeCompletedTime: [],
       queryParams: {
         pageNum: 1,
         pageSize: 10,
         resultCode: null,
-        taskId: null,
+        taskName: null,
+        equipmentName: null,
+        executor: null
       },
-      // 表单参数
+      taskOptions: [],
       form: {},
-      // 表单校验
+      detailForm: {},
       rules: {
-        resultCode: [
-          { required: true, message: "结果编号不能为空", trigger: "blur" }
-        ],
-        taskId: [
-          { required: true, message: "任务ID不能为空", trigger: "blur" }
-        ],
-        overview: [
-          { required: true, message: "巡航概述不能为空", trigger: "blur" }
-        ],
+        resultCode: [{ required: true, message: "结果编号不能为空", trigger: "blur" }],
+        taskId: [{ required: true, message: "任务不能为空", trigger: "change" }],
+        overview: [{ required: true, message: "巡航概述不能为空", trigger: "blur" }]
       },
-      // --- 新增：地图回显相关变量 ---
-      mapOpen: false,           // 控制地图弹窗显示/隐藏
-      echoMap: null,            // 回显地图实例
-      currentTaskName: '',      // 当前查看的任务名称
-      currentRoutePoints: '',   // 当前需要回显的坐标数据
+      mapOpen: false,
+      echoMap: null,
+      currentTaskName: '',
+      currentRoutePoints: ''
     }
   },
   created() {
     this.getList()
+    this.loadTaskOptions()
+  },
+  watch: {
+    'form.taskId'(val) {
+      if (!val || this.form.resultId) return
+      getTask(val).then(resp => {
+        const task = resp.data || {}
+        this.form.taskName = task.taskName || ''
+        this.form.equipmentName = task.equipmentName || ''
+        this.form.routeName = task.routeName || ''
+        this.form.executor = task.executor || ''
+      })
+    }
   },
   methods: {
-    /** 查询巡航结果列表 */
+    loadTaskOptions() {
+      listTask({ pageNum: 1, pageSize: 1000 }).then(resp => {
+        this.taskOptions = resp.rows || []
+      })
+    },
     getList() {
       this.loading = true
+      this.queryParams.params = {}
+      if (this.daterangeCompletedTime && this.daterangeCompletedTime.length === 2) {
+        this.queryParams.params.beginCompletedTime = this.daterangeCompletedTime[0]
+        this.queryParams.params.endCompletedTime = this.daterangeCompletedTime[1]
+      }
       listResult(this.queryParams).then(response => {
         this.resultList = response.rows
         this.total = response.total
         this.loading = false
       })
     },
-    // 取消按钮
     cancel() {
       this.open = false
       this.reset()
     },
-    // 表单重置
     reset() {
       this.form = {
         resultId: null,
@@ -295,191 +246,157 @@ export default {
         equipmentName: null,
         routeName: null,
         executor: null,
+        patrolDuration: null,
+        completedTime: null,
         overview: null,
         findings: null,
         handlingInfo: null,
         aiImageUrl: null,
-        createBy: null,
-        createTime: null,
-        updateBy: null,
-        updateTime: null,
+        routePoints: null,
         remark: null
       }
       this.resetForm("form")
     },
-    /** 搜索按钮操作 */
     handleQuery() {
       this.queryParams.pageNum = 1
       this.getList()
     },
-    /** 重置按钮操作 */
     resetQuery() {
+      this.daterangeCompletedTime = []
       this.resetForm("queryForm")
       this.handleQuery()
     },
-    // 多选框选中数据
     handleSelectionChange(selection) {
       this.ids = selection.map(item => item.resultId)
       this.single = selection.length !== 1
       this.multiple = !selection.length
     },
-    /** 新增按钮操作 */
     handleAdd() {
       this.reset()
       this.open = true
       this.title = "添加巡航结果"
     },
-    /** 修改按钮操作 */
     handleUpdate(row) {
       this.reset()
-      const resultId = row.resultId || this.ids
+      const resultId = row.resultId || this.ids[0]
       getResult(resultId).then(response => {
         this.form = response.data
         this.open = true
         this.title = "修改巡航结果"
       })
     },
-    /** 提交按钮 */
-    submitForm() {
-      this.$refs["form"].validate(valid => {
-        if (valid) {
-          if (this.form.resultId != null) {
-            updateResult(this.form).then(response => {
-              this.$modal.msgSuccess("修改成功")
-              this.open = false
-              this.getList()
-            })
-          } else {
-            addResult(this.form).then(response => {
-              this.$modal.msgSuccess("新增成功")
-              this.open = false
-              this.getList()
-            })
-          }
-        }
+    handleDetail(row) {
+      getResult(row.resultId).then(response => {
+        this.detailForm = response.data || {}
+        this.detailOpen = true
       })
     },
-    /** 删除按钮操作 */
+    submitForm() {
+      this.$refs["form"].validate(valid => {
+        if (!valid) return
+        const action = this.form.resultId != null ? updateResult : addResult
+        action(this.form).then(() => {
+          this.$modal.msgSuccess(this.form.resultId != null ? "修改成功" : "新增成功")
+          this.open = false
+          this.getList()
+        })
+      })
+    },
     handleDelete(row) {
       const resultIds = row.resultId || this.ids
-      this.$modal.confirm('是否确认删除巡航结果编号为"' + resultIds + '"的数据项？').then(function() {
+      this.$modal.confirm('是否确认删除巡航结果编号为"' + resultIds + '"的数据项？').then(() => {
         return delResult(resultIds)
       }).then(() => {
         this.getList()
         this.$modal.msgSuccess("删除成功")
       }).catch(() => {})
     },
-    /** 导出按钮操作 */
     handleExport() {
-      this.download('uav/result/export', {
-        ...this.queryParams
-      }, `result_${new Date().getTime()}.xlsx`)
+      this.download('uav/result/export', { ...this.queryParams }, `result_${new Date().getTime()}.xlsx`)
     },
-    /** 1. 点击“查看轨迹”按钮触发 */
     async handleViewMap(row) {
-      if (!row.taskId) {
-        this.$modal.msgWarning("该结果记录未关联有效任务！");
-        return;
-      }
-
-      this.currentTaskName = row.taskName || `结果-${row.resultCode}`; // 使用快照中的任务名称
-
+      this.currentTaskName = row.taskName || `结果-${row.resultCode}`
       try {
-        const taskResponse = await getTask(row.taskId);
-        const routeId = taskResponse.data.routeId;
-
+        if (row.routePoints) {
+          this.currentRoutePoints = row.routePoints
+          this.mapOpen = true
+          return
+        }
+        if (!row.taskId) {
+          this.$modal.msgWarning("该结果记录未关联任务")
+          return
+        }
+        const taskResponse = await getTask(row.taskId)
+        const routeId = taskResponse.data && taskResponse.data.routeId
         if (!routeId) {
-          this.$modal.msgWarning("该任务未绑定巡航航线！");
-          return;
+          this.$modal.msgWarning("该任务未绑定航线")
+          return
         }
-
-        const routeResponse = await getRoute(routeId);
-        const routeData = routeResponse.data;
-
-        if (!routeData.routePoints) {
-          this.$modal.msgWarning("该航线暂无坐标点位数据！");
-          return;
+        const routeResponse = await getRoute(routeId)
+        if (!routeResponse.data || !routeResponse.data.routePoints) {
+          this.$modal.msgWarning("该航线暂无坐标点位数据")
+          return
         }
-
-        this.currentRoutePoints = routeData.routePoints;
-        this.mapOpen = true;
-
+        this.currentRoutePoints = routeResponse.data.routePoints
+        this.mapOpen = true
       } catch (error) {
-        console.error("获取轨迹数据失败:", error);
-        this.$modal.msgError("获取航线数据失败，请检查配置");
+        this.$modal.msgError("获取航线数据失败")
       }
     },
-
-    /** 2. 初始化回显地图（逻辑基本与Task页一致，注意容器ID） */
     initEchoMap() {
       if (this.echoMap) {
-        this.drawEchoRoute();
-        return;
+        this.drawEchoRoute()
+        return
       }
-
       AMapLoader.load({
-        key: "3e12b539ccc9cec93cc71e8ce8a65306",
+        key: AMAP_KEY,
         version: "2.0",
         plugins: ['AMap.Polyline', 'AMap.Marker']
       }).then((AMap) => {
-        // 初始化地图
         this.echoMap = new AMap.Map("map-echo-container", {
           zoom: 14,
           center: [116.397428, 39.90923]
-        });
-
-        this.drawEchoRoute();
-      }).catch(e => {
-        console.error("地图加载失败:", e);
-      });
+        })
+        this.drawEchoRoute()
+      }).catch(() => {
+        this.$modal.msgError("地图加载失败")
+      })
     },
-
-    /** 3. 核心画线逻辑：解析 JSON 并渲染折线与带序号的钉子 */
     drawEchoRoute() {
-      if (!this.echoMap || !this.currentRoutePoints) return;
-
-      // 清空画布
-      this.echoMap.clearMap();
-
+      if (!this.echoMap || !this.currentRoutePoints) return
+      this.echoMap.clearMap()
       try {
-        const path = JSON.parse(this.currentRoutePoints);
-
+        const path = JSON.parse(this.currentRoutePoints)
         if (path && path.length > 0) {
-          // ================= 1. 画折线 =================
           const polyline = new window.AMap.Polyline({
-            path: path,
-            strokeColor: "#FF33FF",
+            path,
+            strokeColor: "#409EFF",
             strokeWeight: 6,
             strokeOpacity: 0.8,
             lineJoin: 'round',
             showDir: true
-          });
-          this.echoMap.add(polyline);
-
-          // ================= 2. 画带序号的钉子 =================
-          path.forEach((point, index) => {
-            const marker = new window.AMap.Marker({
-              position: point, // 当前转折点的坐标
-              map: this.echoMap,
-              anchor: 'bottom-center',
-              label: {
-                content: `<div style="padding: 0 4px; color: #409EFF; font-weight: bold;">${index + 1}</div>`,
-                direction: 'right'
-              },
-              zIndex: 100       // 保证钉子显示在折线的上方
-            });
-            // 将钉子加到地图上
-            this.echoMap.add(marker);
-          });
-
-          // 自动缩放视野
-          this.echoMap.setFitView();
+          })
+          this.echoMap.add(polyline)
+          this.echoMap.setFitView()
         }
       } catch (e) {
-        console.error("航线解析失败:", e);
-        this.$modal.msgError("航线轨迹渲染异常");
+        this.$modal.msgError("航线轨迹渲染异常")
       }
     }
   }
 }
 </script>
+
+<style scoped>
+.map-box {
+  width: 100%;
+  height: 450px;
+  border: 1px solid #dcdfe6;
+  border-radius: 4px;
+}
+
+.detail-title {
+  margin: 16px 0 8px;
+  font-weight: 600;
+}
+</style>

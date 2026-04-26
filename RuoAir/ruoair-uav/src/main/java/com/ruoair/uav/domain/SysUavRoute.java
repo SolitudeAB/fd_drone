@@ -1,6 +1,7 @@
 package com.ruoair.uav.domain;
 
 import java.math.BigDecimal;
+import java.util.List;
 import org.apache.commons.lang3.builder.ToStringBuilder;
 import org.apache.commons.lang3.builder.ToStringStyle;
 import com.ruoair.common.annotation.Excel;
@@ -33,6 +34,9 @@ public class SysUavRoute extends BaseEntity
 
     /** 航线点位 */
     private String routePoints;
+
+    /** 关联历史任务 */
+    private List<SysUavTask> relatedTasks;
 
     public void setRouteId(Long routeId) 
     {
@@ -82,6 +86,16 @@ public class SysUavRoute extends BaseEntity
     public String getRoutePoints() 
     {
         return routePoints;
+    }
+
+    public void setRelatedTasks(List<SysUavTask> relatedTasks)
+    {
+        this.relatedTasks = relatedTasks;
+    }
+
+    public List<SysUavTask> getRelatedTasks()
+    {
+        return relatedTasks;
     }
 
     @Override

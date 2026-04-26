@@ -71,7 +71,7 @@ public interface ISysUavEquipmentService
      * 更新设备状态
      *
      * @param equipmentId 设备ID
-     * @param status 状态：0空闲,1离线,2故障,3任务中
+     * @param status 状态：0正常,1维修中,2已报废,3任务中
      * @return 结果
      */
     public int updateEquipmentStatus(Long equipmentId, String status);

@@ -36,7 +36,14 @@ public class SysUavEquipmentServiceImpl implements ISysUavEquipmentService
     @Override
     public SysUavEquipment selectSysUavEquipmentByEquipmentId(Long equipmentId)
     {
-        return sysUavEquipmentMapper.selectSysUavEquipmentByEquipmentId(equipmentId);
+        SysUavEquipment equipment = sysUavEquipmentMapper.selectSysUavEquipmentByEquipmentId(equipmentId);
+        if (equipment != null)
+        {
+            SysUavTask query = new SysUavTask();
+            query.setEquipmentId(equipmentId);
+            equipment.setRelatedTasks(sysUavTaskMapper.selectSysUavTaskList(query));
+        }
+        return equipment;
     }
 
     /**
@@ -84,15 +91,15 @@ public class SysUavEquipmentServiceImpl implements ISysUavEquipmentService
     @Override
     public int updateSysUavEquipment(SysUavEquipment sysUavEquipment)
     {
-        // 1. 校验设备编号是否唯一
         SysUavEquipment query = new SysUavEquipment();
         query.setEquipmentCode(sysUavEquipment.getEquipmentCode());
-        // 假设你的 mapper 里有一个基础的查询列表方法
         List<SysUavEquipment> existingList = sysUavEquipmentMapper.selectSysUavEquipmentList(query);
-
-        if (!existingList.isEmpty()) {
-            // 抛出业务异常，前端会自动弹窗提示这句话
-            throw new ServiceException("新增设备失败，设备编号 '" + sysUavEquipment.getEquipmentCode() + "' 已存在，请重新输入！");
+        for (SysUavEquipment existing : existingList)
+        {
+            if (!existing.getEquipmentId().equals(sysUavEquipment.getEquipmentId()))
+            {
+                throw new ServiceException("修改设备失败，设备编号 '" + sysUavEquipment.getEquipmentCode() + "' 已存在，请重新输入！");
+            }
         }
         sysUavEquipment.setUpdateTime(DateUtils.getNowDate());
         return sysUavEquipmentMapper.updateSysUavEquipment(sysUavEquipment);
@@ -156,13 +163,13 @@ public class SysUavEquipmentServiceImpl implements ISysUavEquipmentService
         if (equipment == null) {
             throw new ServiceException("设备不存在！");
         }
-        // status: 0=空闲, 1=离线, 2=故障, 3=任务中
+        // status: 0=正常, 1=维修中, 2=已报废, 3=任务中
         if (!"0".equals(equipment.getStatus())) {
             String statusMsg = "";
             if ("1".equals(equipment.getStatus())) {
-                statusMsg = "离线";
+                statusMsg = "维修中";
             } else if ("2".equals(equipment.getStatus())) {
-                statusMsg = "故障";
+                statusMsg = "已报废";
             } else if ("3".equals(equipment.getStatus())) {
                 statusMsg = "任务中";
             } else {
