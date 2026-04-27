@@ -41,7 +41,12 @@ public class SysUavEquipmentServiceImpl implements ISysUavEquipmentService
         {
             SysUavTask query = new SysUavTask();
             query.setEquipmentId(equipmentId);
-            equipment.setRelatedTasks(sysUavTaskMapper.selectSysUavTaskList(query));
+            List<SysUavTask> allTasks = sysUavTaskMapper.selectSysUavTaskList(query);
+            equipment.setRelatedTasks(allTasks);
+            long pendingCount = allTasks.stream().filter(t -> "0".equals(t.getTaskStatus())).count();
+            long activeCount = allTasks.stream().filter(t -> "1".equals(t.getTaskStatus())).count();
+            equipment.setPendingTaskCount((int) pendingCount);
+            equipment.setActiveTaskCount((int) activeCount);
         }
         return equipment;
     }

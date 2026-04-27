@@ -50,6 +50,12 @@ public class SysUavEquipment extends BaseEntity
     /** 关联历史任务 */
     private List<SysUavTask> relatedTasks;
 
+    /** 待执行任务数 */
+    private int pendingTaskCount;
+
+    /** 执行中任务数 */
+    private int activeTaskCount;
+
     public void setEquipmentId(Long equipmentId) 
     {
         this.equipmentId = equipmentId;
@@ -138,6 +144,26 @@ public class SysUavEquipment extends BaseEntity
     public List<SysUavTask> getRelatedTasks()
     {
         return relatedTasks;
+    }
+
+    public void setPendingTaskCount(int pendingTaskCount)
+    {
+        this.pendingTaskCount = pendingTaskCount;
+    }
+
+    public int getPendingTaskCount()
+    {
+        return pendingTaskCount;
+    }
+
+    public void setActiveTaskCount(int activeTaskCount)
+    {
+        this.activeTaskCount = activeTaskCount;
+    }
+
+    public int getActiveTaskCount()
+    {
+        return activeTaskCount;
     }
 
     @Override

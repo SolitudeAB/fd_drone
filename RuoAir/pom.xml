@@ -31,6 +31,8 @@
         <jwt.version>0.9.1</jwt.version>
         <jaxb-api.version>2.3.1</jaxb-api.version>
         <springdoc.version>3.0.2</springdoc.version>
+        <itext.version>7.2.5</itext.version>
+        <okhttp.version>4.12.0</okhttp.version>
     </properties>
 
     <!-- 依赖声明 -->
@@ -133,6 +135,21 @@
                 <groupId>pro.fessional</groupId>
                 <artifactId>kaptcha</artifactId>
                 <version>${kaptcha.version}</version>
+            </dependency>
+
+            <!-- PDF导出 -->
+            <dependency>
+                <groupId>com.itextpdf</groupId>
+                <artifactId>itext7-core</artifactId>
+                <version>${itext.version}</version>
+                <type>pom</type>
+            </dependency>
+
+            <!-- HTTP客户端 -->
+            <dependency>
+                <groupId>com.squareup.okhttp3</groupId>
+                <artifactId>okhttp</artifactId>
+                <version>${okhttp.version}</version>
             </dependency>
 
             <!-- 定时任务-->

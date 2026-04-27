@@ -33,6 +33,11 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         where route_id = #{routeId}
     </select>
 
+    <select id="selectSysUavRouteByRouteName" parameterType="String" resultMap="SysUavRouteResult">
+        <include refid="selectSysUavRouteVo"/>
+        where route_name = #{routeName}
+    </select>
+
     <insert id="insertSysUavRoute" parameterType="SysUavRoute" useGeneratedKeys="true" keyProperty="routeId">
         insert into sys_uav_route
         <trim prefix="(" suffix=")" suffixOverrides=",">

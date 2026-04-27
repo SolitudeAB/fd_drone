@@ -42,9 +42,15 @@ public class SysUavDashboardServiceImpl implements ISysUavDashboardService {
         result.put("pieData", equipmentStatusData);
 
         // 3. 右侧折线图：查询近七天任务趋势
-        // 获取近7天的日期列表和对应的任务数
+        // 3. 右侧折线图：查询近七天任务趋势
         List<Map<String, Object>> taskTrendData = dashboardMapper.selectTaskTrendLast7Days();
         result.put("lineData", taskTrendData);
+
+        // 4. 今日待执行任务数
+        result.put("pendingToday", dashboardMapper.countPendingToday());
+
+        // 5. 本周完成任务数
+        result.put("completedThisWeek", dashboardMapper.countCompletedThisWeek());
 
         return result;
     }

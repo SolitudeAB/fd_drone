@@ -23,6 +23,19 @@
             <groupId>com.ruoair</groupId>
             <artifactId>ruoair-framework</artifactId>
         </dependency>
+
+        <!-- PDF导出 -->
+        <dependency>
+            <groupId>com.itextpdf</groupId>
+            <artifactId>itext7-core</artifactId>
+            <type>pom</type>
+        </dependency>
+
+        <!-- HTTP客户端 -->
+        <dependency>
+            <groupId>com.squareup.okhttp3</groupId>
+            <artifactId>okhttp</artifactId>
+        </dependency>
     </dependencies>
 
 </project>

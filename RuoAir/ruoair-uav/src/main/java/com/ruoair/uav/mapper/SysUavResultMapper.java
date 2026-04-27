@@ -58,4 +58,12 @@ public interface SysUavResultMapper
      * @return 结果
      */
     public int deleteSysUavResultByResultIds(Long[] resultIds);
+
+    /**
+     * 根据任务ID批量删除巡航结果
+     * 
+     * @param taskIds 任务ID集合
+     * @return 结果
+     */
+    public int deleteSysUavResultByTaskIds(Long[] taskIds);
 }

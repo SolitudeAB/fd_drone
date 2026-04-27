@@ -24,12 +24,15 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         <result property="handlingInfo"    column="handling_info"    />
         <result property="aiImageUrl"    column="ai_image_url"    />
         <result property="routePoints"    column="route_points"    />
+        <result property="taskStatus"    column="task_status"    />
     </resultMap>
 
     <sql id="selectSysUavResultVo">
-        select result_id, result_code, task_id, overview, findings, create_by, create_time, update_by, update_time, remark,
-               task_name, equipment_name, route_name, executor, patrol_duration, completed_time, handling_info, ai_image_url, route_points
-        from sys_uav_result
+        select r.result_id, r.result_code, r.task_id, r.overview, r.findings, r.create_by, r.create_time, r.update_by, r.update_time, r.remark,
+               r.task_name, r.equipment_name, r.route_name, r.executor, r.patrol_duration, r.completed_time, r.handling_info, r.ai_image_url, r.route_points,
+               t.task_status
+        from sys_uav_result r
+        left join sys_uav_task t on r.task_id = t.task_id
     </sql>
 
     <select id="selectSysUavResultList" parameterType="SysUavResult" resultMap="SysUavResultResult">
@@ -127,6 +130,13 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         delete from sys_uav_result where result_id in
         <foreach item="resultId" collection="array" open="(" separator="," close=")">
             #{resultId}
+        </foreach>
+    </delete>
+
+    <delete id="deleteSysUavResultByTaskIds" parameterType="String">
+        delete from sys_uav_result where task_id in
+        <foreach item="taskId" collection="array" open="(" separator="," close=")">
+            #{taskId}
         </foreach>
     </delete>
 </mapper>

@@ -72,6 +72,14 @@ public class SysUavTaskServiceImpl implements ISysUavTaskService
         }
         appendStatusHistory(sysUavTask, "待执行", "创建任务");
         sysUavTask.setCreateTime(DateUtils.getNowDate());
+        SysUavEquipment equipment = sysUavEquipmentMapper.selectSysUavEquipmentByEquipmentId(sysUavTask.getEquipmentId());
+        if (equipment != null) {
+            sysUavTask.setEquipmentName(equipment.getEquipmentName());
+        }
+        SysUavRoute route = sysUavRouteMapper.selectSysUavRouteByRouteId(sysUavTask.getRouteId());
+        if (route != null) {
+            sysUavTask.setRouteName(route.getRouteName());
+        }
         return sysUavTaskMapper.insertSysUavTask(sysUavTask);
     }
 
@@ -115,6 +123,7 @@ public class SysUavTaskServiceImpl implements ISysUavTaskService
             SysUavTask task = sysUavTaskMapper.selectSysUavTaskByTaskId(taskId);
             assertTaskCanBeDeleted(task);
         }
+        sysUavResultMapper.deleteSysUavResultByTaskIds(taskIds);
         return sysUavTaskMapper.deleteSysUavTaskByTaskIds(taskIds);
     }
 
@@ -129,6 +138,7 @@ public class SysUavTaskServiceImpl implements ISysUavTaskService
     {
         SysUavTask task = sysUavTaskMapper.selectSysUavTaskByTaskId(taskId);
         assertTaskCanBeDeleted(task);
+        sysUavResultMapper.deleteSysUavResultByTaskIds(new Long[]{taskId});
         return sysUavTaskMapper.deleteSysUavTaskByTaskId(taskId);
     }
 

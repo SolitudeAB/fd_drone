@@ -20,6 +20,7 @@ import com.ruoair.uav.domain.SysUavRoute;
 import com.ruoair.uav.service.ISysUavRouteService;
 import com.ruoair.common.utils.poi.ExcelUtil;
 import com.ruoair.common.core.page.TableDataInfo;
+import java.util.Map;
 
 /**
  * 巡航航线Controller
@@ -100,5 +101,24 @@ public class SysUavRouteController extends BaseController
     public AjaxResult remove(@PathVariable Long[] routeIds)
     {
         return toAjax(sysUavRouteService.deleteSysUavRouteByRouteIds(routeIds));
+    }
+
+    /**
+     * 更新航线点位（拖拽微调）
+     */
+    @PreAuthorize("@ss.hasPermi('uav:route:edit')")
+    @Log(title = "巡航航线", businessType = BusinessType.UPDATE)
+    @PutMapping("/points/{routeId}")
+    public AjaxResult updatePoints(@PathVariable Long routeId, @RequestBody Map<String, String> body) {
+        SysUavRoute route = sysUavRouteService.selectSysUavRouteByRouteId(routeId);
+        if (route == null) {
+            return error("航线不存在");
+        }
+        String routePoints = body.get("routePoints");
+        if (routePoints == null || routePoints.isEmpty()) {
+            return error("航线点位数据不能为空");
+        }
+        route.setRoutePoints(routePoints);
+        return toAjax(sysUavRouteService.updateSysUavRoute(route));
     }
 }

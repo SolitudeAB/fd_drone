@@ -72,6 +72,10 @@ public class SysUavResult extends BaseEntity
     /** 航线点位快照 */
     private String routePoints;
 
+    /** 任务状态（关联查询） */
+    @Excel(name = "任务状态")
+    private String taskStatus;
+
     public void setResultId(Long resultId) 
     {
         this.resultId = resultId;
@@ -210,6 +214,16 @@ public class SysUavResult extends BaseEntity
     public String getRoutePoints()
     {
         return routePoints;
+    }
+
+    public void setTaskStatus(String taskStatus)
+    {
+        this.taskStatus = taskStatus;
+    }
+
+    public String getTaskStatus()
+    {
+        return taskStatus;
     }
 
     @Override

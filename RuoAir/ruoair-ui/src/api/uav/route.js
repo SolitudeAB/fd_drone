@@ -42,3 +42,12 @@ export function delRoute(routeId) {
     method: 'delete'
   })
 }
+
+// 更新航线点位
+export function updateRoutePoints(routeId, routePoints) {
+  return request({
+    url: '/uav/route/points/' + routeId,
+    method: 'put',
+    data: { routePoints }
+  })
+}

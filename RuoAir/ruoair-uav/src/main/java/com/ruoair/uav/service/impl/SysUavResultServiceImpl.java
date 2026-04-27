@@ -104,5 +104,9 @@ public class SysUavResultServiceImpl implements ISysUavResultService
         {
             throw new ServiceException("巡航概述不能为空！");
         }
+        if (StringUtils.isBlank(sysUavResult.getAiImageUrl()))
+        {
+            throw new ServiceException("请上传/插入巡航结果图片后再进行保存");
+        }
     }
 }

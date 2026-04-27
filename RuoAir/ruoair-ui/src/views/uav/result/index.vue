@@ -50,6 +50,15 @@
       <el-table-column type="selection" width="55" align="center" />
       <el-table-column label="结果编号" align="center" prop="resultCode" min-width="130" />
       <el-table-column label="任务名称" align="center" prop="taskName" min-width="150" show-overflow-tooltip />
+      <el-table-column label="任务状态" align="center" prop="taskStatus" width="100">
+        <template slot-scope="scope">
+          <el-tag v-if="scope.row.taskStatus === '0'" type="info">待执行</el-tag>
+          <el-tag v-else-if="scope.row.taskStatus === '1'">执行中</el-tag>
+          <el-tag v-else-if="scope.row.taskStatus === '2'" type="success">已完成</el-tag>
+          <el-tag v-else-if="scope.row.taskStatus === '3'" type="danger">已取消</el-tag>
+          <el-tag v-else type="info">{{ scope.row.taskStatus }}</el-tag>
+        </template>
+      </el-table-column>
       <el-table-column label="设备名称" align="center" prop="equipmentName" min-width="120" />
       <el-table-column label="航线名称" align="center" prop="routeName" min-width="120" />
       <el-table-column label="巡防时长(分钟)" align="center" prop="patrolDuration" width="130" />
@@ -64,6 +73,7 @@
           <el-button size="mini" type="text" icon="el-icon-map-location" @click="handleViewMap(scope.row)">航线</el-button>
           <el-button size="mini" type="text" icon="el-icon-edit" @click="handleUpdate(scope.row)" v-hasPermi="['uav:result:edit']">修改</el-button>
           <el-button size="mini" type="text" icon="el-icon-delete" @click="handleDelete(scope.row)" v-hasPermi="['uav:result:remove']">删除</el-button>
+          <el-button size="mini" type="text" icon="el-icon-download" @click="handleReport(scope.row)">PDF</el-button>
         </template>
       </el-table-column>
     </el-table>
@@ -84,14 +94,38 @@
         <el-descriptions-item label="处理情况" :span="2">{{ detailForm.handlingInfo || '-' }}</el-descriptions-item>
         <el-descriptions-item label="备注" :span="2">{{ detailForm.remark || '-' }}</el-descriptions-item>
       </el-descriptions>
+      <div v-if="detailForm.aiImageUrl" class="detail-title">AI识别</div>
+      <div v-if="detailForm.aiImageUrl" style="margin-bottom: 12px;">
+        <el-button type="primary" size="mini" icon="el-icon-cpu" @click="handleAiRecognize" :loading="aiRecognizing" :disabled="aiRecognized">
+          {{ aiRecognized ? '已识别' : '开始AI识别' }}
+        </el-button>
+        <el-button v-if="aiRecognized" size="mini" icon="el-icon-refresh" @click="handleAiRecognize">重新识别</el-button>
+        <span v-if="aiStatusHint" style="margin-left: 8px; color: #909399; font-size: 12px;">{{ aiStatusHint }}</span>
+      </div>
+      <div v-if="recognitionResult" style="background: #f8f9fa; padding: 12px; border-radius: 6px; margin-bottom: 12px;">
+        <div style="font-weight: bold; margin-bottom: 6px; color: #303133;">识别结果（模型：{{ recognitionResult.model || '-' }}）</div>
+        <div style="font-size: 13px; line-height: 1.8; white-space: pre-wrap; color: #606266; margin-bottom: 12px;">{{ recognitionResult.recognition }}</div>
+      </div>
       <div v-if="detailForm.aiImageUrl" class="detail-title">图片</div>
-      <el-image
-        v-if="detailForm.aiImageUrl"
-        :src="detailForm.aiImageUrl"
-        :preview-src-list="[detailForm.aiImageUrl]"
-        fit="cover"
-        style="width: 120px; height: 120px; border-radius: 4px;"
-      />
+      <div v-if="detailForm.aiImageUrl" style="max-width: 100%; position: relative; border: 1px solid #dcdfe6; border-radius: 6px; overflow: hidden; background: #000;">
+        <el-image
+          :src="detailForm.aiImageUrl"
+          :preview-src-list="[detailForm.aiImageUrl]"
+          fit="contain"
+          style="width: 100%; display: block; cursor: pointer;"
+          @load="onAiImageLoad"
+          ref="aiImage"
+        />
+        <div
+          v-for="(box, idx) in boundingBoxes"
+          :key="idx"
+          :style="box.style"
+          class="ai-bounding-box"
+          @click.stop
+        >
+          <span class="box-label">{{ box.name }}</span>
+        </div>
+      </div>
     </el-dialog>
 
     <el-dialog title="航线轨迹预览" :visible.sync="mapOpen" width="800px" append-to-body @opened="initEchoMap">
@@ -138,8 +172,46 @@
         <el-form-item label="处理情况" prop="handlingInfo">
           <el-input v-model="form.handlingInfo" type="textarea" :rows="3" placeholder="请输入处理情况" />
         </el-form-item>
-        <el-form-item label="AI识别图片" prop="aiImageUrl">
-          <el-input v-model="form.aiImageUrl" placeholder="请输入图片URL" />
+        <el-form-item label="AI识别图片" prop="aiImageUrl" class="ai-upload-area">
+          <div
+            class="drop-zone"
+            :class="{ 'drop-active': dragOver }"
+            @dragover.prevent="dragOver = true"
+            @dragleave="dragOver = false"
+            @drop.prevent="handleDrop"
+          >
+            <div v-if="!form.aiImageUrl" style="text-align: center; padding: 20px 0;">
+              <i class="el-icon-upload2" style="font-size: 28px; color: #c0c4cc;"></i>
+              <div style="color: #909399; margin-top: 8px; font-size: 13px;">
+                拖放图片到此处 或 点击下方按钮上传<br>
+                <span style="font-size: 11px; color: #c0c4cc;">支持 JPG / PNG / WEBP，≤5MB</span>
+              </div>
+            </div>
+            <div v-else style="text-align: center;">
+              <el-image :src="form.aiImageUrl" fit="contain" style="max-height: 180px; cursor: pointer;" :preview-src-list="[form.aiImageUrl]" />
+              <div style="margin-top: 6px;">
+                <el-tag size="mini" type="success" style="margin-right: 6px;">已上传</el-tag>
+                <el-button size="mini" type="text" icon="el-icon-delete" @click="removeImage" style="color: #f56c6c;">移除</el-button>
+              </div>
+            </div>
+          </div>
+          <div style="margin-top: 8px; display: flex; gap: 8px; flex-wrap: wrap; align-items: center;">
+            <el-upload
+              action=""
+              :http-request="handleImageUpload"
+              :show-file-list="false"
+              accept="image/png,image/jpeg,image/jpg,image/gif,image/webp"
+              :before-upload="beforeImageUpload"
+            >
+              <el-button size="small" type="primary" plain icon="el-icon-upload">选择图片</el-button>
+            </el-upload>
+            <el-button v-if="form.aiImageUrl" size="small" type="success" icon="el-icon-cpu" @click="handleFormAiAnalyze" :loading="aiFormAnalyzing">
+              自动分析填充
+            </el-button>
+            <el-input v-model="form.aiImageUrl" placeholder="或粘贴图片URL" size="small" style="flex: 1; min-width: 180px;" clearable />
+          </div>
+          <div v-if="aiFormStatusMsg" style="margin-top: 4px; font-size: 12px; color: #67C23A;">{{ aiFormStatusMsg }}</div>
+          <div v-if="aiFormErrorMsg" style="margin-top: 4px; font-size: 12px; color: #F56C6C;">{{ aiFormErrorMsg }}</div>
         </el-form-item>
         <el-form-item label="备注" prop="remark">
           <el-input v-model="form.remark" type="textarea" placeholder="请输入内容" />
@@ -154,7 +226,7 @@
 </template>
 
 <script>
-import { listResult, getResult, delResult, addResult, updateResult } from "@/api/uav/result"
+import { listResult, getResult, delResult, addResult, updateResult, recognizeResult, checkAiStatus, exportReport, uploadResultImage, autoAnalyze } from "@/api/uav/result"
 import { listTask, getTask } from "@/api/uav/task"
 import { getRoute } from "@/api/uav/route"
 import AMapLoader from '@amap/amap-jsapi-loader'
@@ -190,12 +262,24 @@ export default {
       rules: {
         resultCode: [{ required: true, message: "结果编号不能为空", trigger: "blur" }],
         taskId: [{ required: true, message: "任务不能为空", trigger: "change" }],
-        overview: [{ required: true, message: "巡航概述不能为空", trigger: "blur" }]
+        overview: [{ required: true, message: "巡航概述不能为空", trigger: "blur" }],
+        aiImageUrl: [{ required: true, message: "请上传/插入巡航结果图片后再进行保存", trigger: "change" }],
+        completedTime: [{ required: true, message: "完成时间不能为空", trigger: "change" }]
       },
       mapOpen: false,
       echoMap: null,
       currentTaskName: '',
-      currentRoutePoints: ''
+      currentRoutePoints: '',
+      aiRecognizing: false,
+      aiRecognized: false,
+      recognitionResult: null,
+      aiStatusHint: '',
+      boundingBoxes: [],
+      aiImageNaturalSize: { w: 0, h: 0 },
+      dragOver: false,
+      aiFormAnalyzing: false,
+      aiFormStatusMsg: '',
+      aiFormErrorMsg: ''
     }
   },
   created() {
@@ -273,6 +357,7 @@ export default {
     },
     handleAdd() {
       this.reset()
+      this.form.completedTime = this.parseTime(new Date(), '{y}-{m}-{d} {h}:{i}:{s}')
       this.open = true
       this.title = "添加巡航结果"
     },
@@ -288,8 +373,90 @@ export default {
     handleDetail(row) {
       getResult(row.resultId).then(response => {
         this.detailForm = response.data || {}
+        this.recognitionResult = null
+        this.aiRecognized = false
+        this.aiStatusHint = ''
+        this.boundingBoxes = []
         this.detailOpen = true
+        if (this.detailForm.aiImageUrl) {
+          this.checkAiAvailability()
+        }
       })
+    },
+    checkAiAvailability() {
+      checkAiStatus().then(resp => {
+        const data = resp.data || {}
+        if (!data.available) {
+          this.aiStatusHint = '提示：' + (data.message || 'AI接口不可用')
+        }
+      }).catch(() => {
+        this.aiStatusHint = '提示：AI接口未连接或已失效'
+      })
+    },
+    handleAiRecognize() {
+      if (!this.detailForm.resultId) return
+      this.aiRecognizing = true
+      recognizeResult(this.detailForm.resultId).then(resp => {
+        const data = resp.data || {}
+        if (data.success) {
+          this.recognitionResult = data
+          this.aiRecognized = true
+          this.aiStatusHint = ''
+          this.buildBoundingBoxes(data.targets)
+        } else {
+          this.aiStatusHint = '识别失败：' + (data.message || '未知错误')
+          this.$modal.msgWarning(data.message || 'AI识别失败')
+        }
+      }).catch(() => {
+        this.aiStatusHint = '识别失败：API接口未连接或已失效'
+        this.$modal.msgError('AI识别接口调用失败，请检查API配置')
+      }).finally(() => {
+        this.aiRecognizing = false
+      })
+    },
+    handleReport(row) {
+      if (row.resultId) {
+        exportReport(row.resultId).then(response => {
+          const blob = new Blob([response], { type: 'application/pdf' })
+          const link = document.createElement('a')
+          link.href = URL.createObjectURL(blob)
+          link.download = '巡防报告_' + (row.resultCode || row.resultId) + '.pdf'
+          link.click()
+          URL.revokeObjectURL(link.href)
+          this.$modal.msgSuccess("PDF报告下载成功")
+        }).catch(() => {
+          this.$modal.msgError("PDF报告导出失败")
+        })
+      }
+    },
+    onAiImageLoad() {
+      if (this.recognitionResult && this.recognitionResult.targets) {
+        this.buildBoundingBoxes(this.recognitionResult.targets)
+      }
+    },
+    buildBoundingBoxes(targets) {
+      if (!targets || targets.length === 0) {
+        this.boundingBoxes = []
+        return
+      }
+      const colors = ['#F56C6C', '#409EFF', '#67C23A', '#E6A23C', '#9B59B6', '#1ABC9C', '#E91E63', '#00BCD4']
+      this.boundingBoxes = targets.map((t, idx) => ({
+        name: t.name || t.description || '目标',
+        style: {
+          position: 'absolute',
+          top: (t.top || '15') + '%',
+          left: (t.left || '15') + '%',
+          width: (t.width || '70') + '%',
+          height: (t.height || '70') + '%',
+          border: '2px solid ' + colors[idx % colors.length],
+          backgroundColor: colors[idx % colors.length] + '25',
+          borderRadius: '4px',
+          display: 'flex',
+          alignItems: 'flex-start',
+          justifyContent: 'center',
+          pointerEvents: 'none'
+        }
+      }))
     },
     submitForm() {
       this.$refs["form"].validate(valid => {
@@ -300,6 +467,86 @@ export default {
           this.open = false
           this.getList()
         })
+      })
+    },
+    beforeImageUpload(file) {
+      const isImage = file.type.startsWith('image/')
+      if (!isImage) {
+        this.$modal.msgError('只能上传图片文件！')
+        return false
+      }
+      const isLt5M = file.size / 1024 / 1024 < 5
+      if (!isLt5M) {
+        this.$modal.msgError('图片大小不能超过 5MB！')
+        return false
+      }
+      return true
+    },
+    handleImageUpload(params) {
+      this.aiFormStatusMsg = ''
+      this.aiFormErrorMsg = ''
+      const formData = new FormData()
+      formData.append('file', params.file)
+      uploadResultImage(formData).then(resp => {
+        this.form.aiImageUrl = resp.url || resp.fileName
+        this.$modal.msgSuccess('图片上传成功')
+        this.autoFillFromAi()
+      }).catch(() => {
+        this.$modal.msgError('图片上传失败')
+      })
+    },
+    handleDrop(e) {
+      this.dragOver = false
+      const files = e.dataTransfer.files
+      if (!files || files.length === 0) return
+      const file = files[0]
+      if (!this.beforeImageUpload(file)) return
+      this.aiFormStatusMsg = ''
+      this.aiFormErrorMsg = ''
+      const formData = new FormData()
+      formData.append('file', file)
+      uploadResultImage(formData).then(resp => {
+        this.form.aiImageUrl = resp.url || resp.fileName
+        this.$modal.msgSuccess('图片上传成功')
+        this.autoFillFromAi()
+      }).catch(() => {
+        this.$modal.msgError('图片上传失败')
+      })
+    },
+    removeImage() {
+      this.form.aiImageUrl = null
+      this.aiFormStatusMsg = ''
+      this.aiFormErrorMsg = ''
+    },
+    handleFormAiAnalyze() {
+      this.autoFillFromAi()
+    },
+    autoFillFromAi() {
+      if (!this.form.aiImageUrl) return
+      this.aiFormAnalyzing = true
+      this.aiFormStatusMsg = 'AI正在分析图片...'
+      this.aiFormErrorMsg = ''
+      const taskName = this.form.taskName || ''
+      autoAnalyze(this.form.aiImageUrl, taskName).then(resp => {
+        const { data } = resp
+        if (data.success) {
+          this.aiFormStatusMsg = 'AI分析完成！已自动填充发现情况、处理情况、备注，请核对后保存'
+          if (data.findings) this.form.findings = data.findings
+          if (data.handlingInfo) this.form.handlingInfo = data.handlingInfo
+          if (data.remark) this.form.remark = data.remark
+          if (!this.form.overview || this.form.overview === '本次巡防任务正常完成，无异常情况') {
+            if (data.findings) this.form.overview = data.findings
+          }
+          if (data.targets && data.targets.length > 0) {
+            this.aiFormStatusMsg += ' （检测到' + data.targets.length + '个目标）'
+          }
+        } else {
+          this.aiFormErrorMsg = (data.message || 'AI分析失败').replace(/AI识别/g, 'AI分析')
+        }
+      }).catch(() => {
+        this.aiFormErrorMsg = 'AI分析接口未连接或已失效，请手动填写各字段'
+      }).finally(() => {
+        this.aiFormAnalyzing = false
       })
     },
     handleDelete(row) {
@@ -398,5 +645,34 @@ export default {
 .detail-title {
   margin: 16px 0 8px;
   font-weight: 600;
+}
+.ai-bounding-box {
+  transition: all 0.2s;
+}
+.box-label {
+  background: rgba(0,0,0,0.7);
+  color: #fff;
+  font-size: 12px;
+  padding: 2px 8px;
+  border-radius: 3px;
+  white-space: nowrap;
+  position: absolute;
+  top: -2px;
+  left: 50%;
+  transform: translate(-50%, -100%);
+}
+.drop-zone {
+  border: 2px dashed #dcdfe6;
+  border-radius: 8px;
+  min-height: 100px;
+  transition: all 0.3s;
+  cursor: pointer;
+}
+.drop-zone.drop-active {
+  border-color: #409EFF;
+  background-color: rgba(64,158,255,0.05);
+}
+.ai-upload-area .el-form-item__content {
+  display: block;
 }
 </style>

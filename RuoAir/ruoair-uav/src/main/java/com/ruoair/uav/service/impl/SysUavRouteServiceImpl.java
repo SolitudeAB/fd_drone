@@ -66,6 +66,7 @@ public class SysUavRouteServiceImpl implements ISysUavRouteService
     @Override
     public int insertSysUavRoute(SysUavRoute sysUavRoute)
     {
+        checkRouteNameUnique(sysUavRoute.getRouteName(), null);
         sysUavRoute.setCreateTime(DateUtils.getNowDate());
         return sysUavRouteMapper.insertSysUavRoute(sysUavRoute);
     }
@@ -79,6 +80,7 @@ public class SysUavRouteServiceImpl implements ISysUavRouteService
     @Override
     public int updateSysUavRoute(SysUavRoute sysUavRoute)
     {
+        checkRouteNameUnique(sysUavRoute.getRouteName(), sysUavRoute.getRouteId());
         sysUavRoute.setUpdateTime(DateUtils.getNowDate());
         return sysUavRouteMapper.updateSysUavRoute(sysUavRoute);
     }
@@ -110,6 +112,17 @@ public class SysUavRouteServiceImpl implements ISysUavRouteService
     {
         assertRouteCanDelete(routeId);
         return sysUavRouteMapper.deleteSysUavRouteByRouteId(routeId);
+    }
+
+    private void checkRouteNameUnique(String routeName, Long excludeRouteId)
+    {
+        if (routeName == null || routeName.trim().isEmpty()) {
+            return;
+        }
+        SysUavRoute existing = sysUavRouteMapper.selectSysUavRouteByRouteName(routeName.trim());
+        if (existing != null && (excludeRouteId == null || !existing.getRouteId().equals(excludeRouteId))) {
+            throw new ServiceException("航线名称【" + routeName + "】已存在，请使用其他名称！");
+        }
     }
 
     private void assertRouteCanDelete(Long routeId)

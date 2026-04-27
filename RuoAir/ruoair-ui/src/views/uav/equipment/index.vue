@@ -111,6 +111,10 @@
       </el-descriptions>
 
       <div class="detail-title">关联历史任务</div>
+      <div v-if="detailForm.pendingTaskCount !== undefined || detailForm.activeTaskCount !== undefined" style="margin-bottom: 8px; font-size: 13px; color: #606266;">
+        <el-tag size="small" type="info" style="margin-right: 8px;">待执行: {{ detailForm.pendingTaskCount || 0 }}</el-tag>
+        <el-tag size="small" style="margin-right: 8px;">执行中: {{ detailForm.activeTaskCount || 0 }}</el-tag>
+      </div>
       <el-table :data="detailForm.relatedTasks || []" size="mini" border>
         <el-table-column label="任务名称" prop="taskName" min-width="160" />
         <el-table-column label="执行人" prop="executor" width="100" />

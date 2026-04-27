@@ -20,6 +20,14 @@ public interface SysUavRouteMapper
     public SysUavRoute selectSysUavRouteByRouteId(Long routeId);
 
     /**
+     * 根据航线名称精确查询
+     * 
+     * @param routeName 航线名称
+     * @return 巡航航线
+     */
+    public SysUavRoute selectSysUavRouteByRouteName(String routeName);
+
+    /**
      * 查询巡航航线列表
      * 
      * @param sysUavRoute 巡航航线

@@ -27,4 +27,10 @@ public interface SysUavDashboardMapper {
 
     // 统计近7天每天的任务执行数量 (用于折线图)
     List<Map<String, Object>> selectTaskTrendLast7Days();
+
+    // 统计今日待执行任务数
+    int countPendingToday();
+
+    // 统计本周完成任务数
+    int countCompletedThisWeek();
 }

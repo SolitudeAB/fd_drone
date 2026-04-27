@@ -1,28 +1,40 @@
 <template>
   <div class="app-container home-dashboard">
     <el-row :gutter="20" class="panel-group">
-      <el-col :span="6" class="card-panel-col">
+      <el-col :span="4" class="card-panel-col">
         <el-card shadow="hover" class="data-card">
           <div class="card-header">无人机设备总数</div>
           <div class="card-num color-blue">{{ dashData.equipmentTotal }}</div>
         </el-card>
       </el-col>
-      <el-col :span="6" class="card-panel-col">
+      <el-col :span="4" class="card-panel-col">
         <el-card shadow="hover" class="data-card">
           <div class="card-header">航线规划总数</div>
           <div class="card-num color-green">{{ dashData.routeTotal }}</div>
         </el-card>
       </el-col>
-      <el-col :span="6" class="card-panel-col">
+      <el-col :span="4" class="card-panel-col">
         <el-card shadow="hover" class="data-card">
           <div class="card-header">累计任务总数</div>
           <div class="card-num color-orange">{{ dashData.taskTotal }}</div>
         </el-card>
       </el-col>
-      <el-col :span="6" class="card-panel-col">
+      <el-col :span="4" class="card-panel-col">
         <el-card shadow="hover" class="data-card">
           <div class="card-header">归档结果总数</div>
           <div class="card-num color-purple">{{ dashData.resultTotal }}</div>
+        </el-card>
+      </el-col>
+      <el-col :span="4" class="card-panel-col">
+        <el-card shadow="hover" class="data-card">
+          <div class="card-header">今日待执行</div>
+          <div class="card-num color-cyan">{{ dashData.pendingToday }}</div>
+        </el-card>
+      </el-col>
+      <el-col :span="4" class="card-panel-col">
+        <el-card shadow="hover" class="data-card">
+          <div class="card-header">本周已完成</div>
+          <div class="card-num color-teal">{{ dashData.completedThisWeek }}</div>
         </el-card>
       </el-col>
     </el-row>
@@ -63,7 +75,9 @@ export default {
         equipmentTotal: 15,
         routeTotal: 24,
         taskTotal: 86,
-        resultTotal: 79
+        resultTotal: 79,
+        pendingToday: 0,
+        completedThisWeek: 0
       },
       // 图表实例对象
       pieChartInstance: null,
@@ -92,6 +106,8 @@ export default {
         this.dashData.routeTotal = response.data.routeTotal;
         this.dashData.taskTotal = response.data.taskTotal;
         this.dashData.resultTotal = response.data.resultTotal;
+        this.dashData.pendingToday = response.data.pendingToday || 0;
+        this.dashData.completedThisWeek = response.data.completedThisWeek || 0;
 
         // 2. 将后端返回的饼图数据喂给 ECharts
         // (注意：这里需要把后端的 status 字典值翻译成中文，可以在 SQL 里写 CASE WHEN，或者在前端翻译)
@@ -213,6 +229,8 @@ export default {
 .color-green { color: #67C23A; }
 .color-orange { color: #E6A23C; }
 .color-purple { color: #9c27b0; }
+.color-cyan { color: #00bcd4; }
+.color-teal { color: #009688; }
 
 .chart-group .el-card {
   border-radius: 8px;

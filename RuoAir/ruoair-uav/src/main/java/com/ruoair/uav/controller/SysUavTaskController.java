@@ -136,6 +136,8 @@ public class SysUavTaskController extends BaseController
         return toAjax(sysUavTaskService.cancelTask(taskId));
     }
 
+    @PreAuthorize("@ss.hasPermi('uav:task:edit')")
+    @Log(title = "巡航任务", businessType = BusinessType.UPDATE)
     @PutMapping("/pause/{taskId}")
     public AjaxResult pauseTask(@PathVariable Long taskId) {
         return toAjax(sysUavTaskService.pauseTask(taskId));

@@ -213,7 +213,7 @@
 </template>
 
 <script>
-import { listTask, getTask, delTask, addTask, updateTask, startTask, completeTask, cancelTask } from "@/api/uav/task"
+import { listTask, getTask, delTask, addTask, updateTask, startTask, completeTask, cancelTask, pauseTask } from "@/api/uav/task"
 import { listEquipment } from "@/api/uav/equipment"
 import { listRoute, getRoute } from "@/api/uav/route"
 import AMapLoader from '@amap/amap-jsapi-loader'
@@ -275,7 +275,8 @@ export default {
       movementStartAt: 0,
       movementBaseProgress: 0,
       movementDurationMs: 0,
-      lastSyncedProgress: -1
+      lastSyncedProgress: -1,
+      simulationCompletionTimer: null
     }
   },
   created() {
@@ -284,6 +285,7 @@ export default {
   },
   beforeDestroy() {
     if (this.simulationTimer) clearInterval(this.simulationTimer)
+    if (this.simulationCompletionTimer) clearTimeout(this.simulationCompletionTimer)
   },
   methods: {
     loadOptions() {
@@ -531,6 +533,16 @@ export default {
         this.refreshRemainTime()
         return
       }
+      if (this.simulationPaused) {
+        startTask(this.currentSimulationTask.taskId).then(() => {
+          this.currentSimulationTask.taskStatus = "1"
+          this.doStartAnimation()
+        }).catch(() => {})
+      } else {
+        this.doStartAnimation()
+      }
+    },
+    doStartAnimation() {
       const remainingPath = this.buildRemainingPath(this.simulationPath, this.progressExact)
       if (remainingPath.length < 2) return
       if (typeof this.uavMarker.stopMove === "function") this.uavMarker.stopMove()
@@ -546,12 +558,23 @@ export default {
         autoRotation: true,
         easing: function(k) { return k }
       })
+      if (this.simulationCompletionTimer) clearTimeout(this.simulationCompletionTimer)
+      this.simulationCompletionTimer = setTimeout(() => {
+        this.progressExact = 100
+        this.progress = 100
+        this.syncTaskProgress(100, true)
+        this.updateLocalTaskProgress(this.currentSimulationTask.taskId, 100)
+        if (this.simulationTimer) {
+          clearInterval(this.simulationTimer)
+          this.simulationTimer = null
+        }
+      }, this.movementDurationMs + 1500)
       this.calculateLiveProgress()
     },
     isTaskPaused(row) {
       return !!this.pausedTaskMap[row.taskId]
     },
-    /** 暂停飞行（仅暂停前端模拟，不改变任务业务状态） */
+    /** 暂停飞行（调用后端暂停接口，改变任务业务状态） */
     pauseSimulation(taskId) {
       if (typeof taskId === 'object') {
         taskId = null
@@ -560,6 +583,8 @@ export default {
       const targetId = taskId || (this.currentSimulationTask && this.currentSimulationTask.taskId)
       if (!targetId) return
 
+      const finalProgress = this.formatProgress(this.progress)
+
       if (this.uavMarker && typeof this.uavMarker.stopMove === "function") {
         this.uavMarker.stopMove()
       }
@@ -567,15 +592,23 @@ export default {
         clearInterval(this.simulationTimer)
         this.simulationTimer = null
       }
+      if (this.simulationCompletionTimer) {
+        clearTimeout(this.simulationCompletionTimer)
+        this.simulationCompletionTimer = null
+      }
       this.simulationPaused = true
       this.hasSimulationStarted = true
       this.pausedTaskMap[targetId] = true
 
-      const finalProgress = this.formatProgress(this.progress)
       this.updateLocalTaskProgress(targetId, finalProgress)
       this.syncTaskProgress(finalProgress, true)
 
-      this.$modal.msgSuccess("模拟已暂停，点击继续飞行可恢复")
+      pauseTask(targetId).then(() => {
+        this.currentSimulationTask.taskStatus = "0"
+        this.$modal.msgSuccess("飞行已暂停，任务状态已更新")
+      }).catch(() => {
+        this.$modal.msgSuccess("飞行已暂停（模拟层面）")
+      })
     },
     calculateLiveProgress() {
       if (this.simulationTimer) clearInterval(this.simulationTimer)
@@ -693,6 +726,10 @@ export default {
       if (this.simulationTimer) {
         clearInterval(this.simulationTimer)
         this.simulationTimer = null
+      }
+      if (this.simulationCompletionTimer) {
+        clearTimeout(this.simulationCompletionTimer)
+        this.simulationCompletionTimer = null
       }
       if (this.uavMarker) this.uavMarker.stopMove()
       this.hasSimulationStarted = false

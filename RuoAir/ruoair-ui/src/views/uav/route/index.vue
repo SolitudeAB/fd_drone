@@ -98,6 +98,10 @@
         <el-descriptions-item label="备注" :span="2">{{ detailForm.remark || '-' }}</el-descriptions-item>
       </el-descriptions>
       <div id="map-detail-container" class="map-container" style="height: 300px; margin-top: 12px;"></div>
+      <div style="margin-top: 8px; font-size: 12px; color: #909399;">
+        <i class="el-icon-info"></i> 拖拽地图上的点位标记可微调航线
+        <el-button size="mini" type="primary" style="margin-left: 12px;" @click="saveDetailPoints" :disabled="!detailPath || detailPath.length === 0">保存调整</el-button>
+      </div>
       <div class="detail-title">关联历史任务</div>
       <el-table :data="detailForm.relatedTasks || []" size="mini" border>
         <el-table-column label="任务名称" prop="taskName" min-width="160" />
@@ -117,7 +121,7 @@
 </template>
 
 <script>
-import { listRoute, getRoute, delRoute, addRoute, updateRoute } from "@/api/uav/route"
+import { listRoute, getRoute, delRoute, addRoute, updateRoute, updateRoutePoints } from "@/api/uav/route"
 import AMapLoader from '@amap/amap-jsapi-loader'
 
 const AMAP_KEY = process.env.VUE_APP_AMAP_KEY || "3e12b539ccc9cec93cc71e8ce8a65306"
@@ -158,7 +162,10 @@ export default {
         { label: "执行中", value: "1" },
         { label: "已完成", value: "2" },
         { label: "已取消", value: "3" }
-      ]
+      ],
+      detailMarkers: [],
+      detailPath: [],
+      detailPolyline: null
     }
   },
   created() {
@@ -274,18 +281,80 @@ export default {
       })
     },
     initDetailMap() {
-      if (!this.detailForm.routePoints) return
+      if (this.detailMap) this.detailMap.destroy()
+      this.detailMarkers = []
+      this.detailPath = []
       AMapLoader.load({
         key: AMAP_KEY,
         version: "2.0",
         plugins: ['AMap.Polyline', 'AMap.Marker']
       }).then((AMap) => {
-        if (!this.detailMap) {
-          this.detailMap = new AMap.Map("map-detail-container", { zoom: 14, center: [119.192088, 26.050807] })
-        } else {
-          this.detailMap.clearMap()
-        }
-        this.echoRoute(this.detailForm.routePoints, this.detailMap)
+        this.detailMap = new AMap.Map("map-detail-container", { zoom: 14, center: [119.192088, 26.050807] })
+        this.echoRouteWithDrag(this.detailForm.routePoints)
+      })
+    },
+    echoRouteWithDrag(routePoints) {
+      if (!routePoints || !this.detailMap) return
+      this.detailMap.clearMap()
+      this.detailMarkers = []
+      try {
+        const path = JSON.parse(routePoints)
+        if (!Array.isArray(path) || path.length === 0) return
+        this.detailPath = [...path]
+        this.drawDetailPolyline()
+        this.addDraggableMarkers(this.detailPath)
+        this.detailMap.setFitView()
+      } catch (e) {
+        this.$modal.msgError("航线数据格式异常")
+      }
+    },
+    drawDetailPolyline() {
+      if (!this.detailMap || !this.detailPath || this.detailPath.length === 0) return
+      if (this.detailPolyline) {
+        this.detailMap.remove(this.detailPolyline)
+      }
+      this.detailPolyline = new window.AMap.Polyline({
+        path: this.detailPath,
+        strokeColor: "#67C23A",
+        strokeWeight: 5,
+        lineJoin: 'round'
+      })
+      this.detailMap.add(this.detailPolyline)
+    },
+    addDraggableMarkers(path) {
+      if (!this.detailMap) return
+      this.detailMarkers.forEach(m => this.detailMap.remove(m))
+      this.detailMarkers = []
+      path.forEach((pos, index) => {
+        const marker = new window.AMap.Marker({
+          position: pos,
+          map: this.detailMap,
+          draggable: true,
+          label: {
+            content: String(index + 1),
+            offset: new window.AMap.Pixel(0, -20)
+          }
+        })
+        marker.on('dragend', (e) => {
+          const newPos = [e.lnglat.lng, e.lnglat.lat]
+          this.detailPath[index] = newPos
+          this.drawDetailPolyline()
+          this.detailForm.routePoints = JSON.stringify(this.detailPath)
+        })
+        this.detailMarkers.push(marker)
+      })
+    },
+    saveDetailPoints() {
+      if (!this.detailForm.routeId || !this.detailPath || this.detailPath.length === 0) {
+        this.$modal.msgWarning("没有可保存的点位数据")
+        return
+      }
+      updateRoutePoints(this.detailForm.routeId, JSON.stringify(this.detailPath)).then(() => {
+        this.$modal.msgSuccess("航线点位调整成功")
+        this.detailOpen = false
+        this.getList()
+      }).catch(() => {
+        this.$modal.msgError("航线点位保存失败")
       })
     },
     startDraw() {
