@@ -4,74 +4,51 @@
 
 <script>
 import * as echarts from 'echarts'
-require('echarts/theme/macarons') // echarts theme
+require('echarts/theme/macarons')
 import resize from './mixins/resize'
 
 export default {
   mixins: [resize],
   props: {
-    className: {
-      type: String,
-      default: 'chart'
-    },
-    width: {
-      type: String,
-      default: '100%'
-    },
-    height: {
-      type: String,
-      default: '300px'
-    }
+    className: { type: String, default: 'chart' },
+    width: { type: String, default: '100%' },
+    height: { type: String, default: '300px' },
+    pieData: { type: Array, default: () => [] }
   },
   data() {
-    return {
-      chart: null
+    return { chart: null }
+  },
+  watch: {
+    pieData: {
+      deep: true,
+      handler(val) { this.setOptions(val) }
     }
   },
   mounted() {
-    this.$nextTick(() => {
-      this.initChart()
-    })
+    this.$nextTick(() => { this.initChart() })
   },
   beforeDestroy() {
-    if (!this.chart) {
-      return
-    }
-    this.chart.dispose()
-    this.chart = null
+    if (this.chart) { this.chart.dispose(); this.chart = null }
   },
   methods: {
     initChart() {
       this.chart = echarts.init(this.$el, 'macarons')
-
+      this.setOptions(this.pieData)
+    },
+    setOptions(data) {
       this.chart.setOption({
-        tooltip: {
-          trigger: 'item',
-          formatter: '{a} <br/>{b} : {c} ({d}%)'
-        },
-        legend: {
-          left: 'center',
-          bottom: '10',
-          data: ['Industries', 'Technology', 'Forex', 'Gold', 'Forecasts']
-        },
-        series: [
-          {
-            name: 'WEEKLY WRITE ARTICLES',
-            type: 'pie',
-            roseType: 'radius',
-            radius: [15, 95],
-            center: ['50%', '38%'],
-            data: [
-              { value: 320, name: 'Industries' },
-              { value: 240, name: 'Technology' },
-              { value: 149, name: 'Forex' },
-              { value: 100, name: 'Gold' },
-              { value: 59, name: 'Forecasts' }
-            ],
-            animationEasing: 'cubicInOut',
-            animationDuration: 2600
-          }
-        ]
+        title: { text: '设备状态分布', left: 'center', top: 5, textStyle: { fontSize: 14 } },
+        tooltip: { trigger: 'item', formatter: '{b} : {c} ({d}%)' },
+        legend: { left: 'center', bottom: 10, data: (data || []).map(d => d.name) },
+        series: [{
+          type: 'pie',
+          roseType: 'radius',
+          radius: [15, 95],
+          center: ['50%', '45%'],
+          data: data,
+          animationEasing: 'cubicInOut',
+          animationDuration: 2600
+        }]
       })
     }
   }

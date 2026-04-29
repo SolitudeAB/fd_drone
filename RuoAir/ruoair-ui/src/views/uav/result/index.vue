@@ -94,9 +94,27 @@
       <div v-if="recognitionResult" style="background: #f8f9fa; padding: 12px; border-radius: 6px; margin-bottom: 12px;">
         <div style="font-weight: bold; margin-bottom: 6px; color: #303133;">识别结果（模型：{{ recognitionResult.model || '-' }}）</div>
         <div style="font-size: 13px; line-height: 1.8; white-space: pre-wrap; color: #606266; margin-bottom: 12px;">{{ recognitionResult.recognition }}</div>
+        <div v-if="recognitionResult.objects && recognitionResult.objects.length" style="margin-top: 8px;">
+          <div style="font-weight: bold; font-size: 12px; color: #909399; margin-bottom: 4px;">📐 坐标调试信息：</div>
+          <div v-for="(obj, idx) in recognitionResult.objects" :key="'dbg'+idx" style="font-size: 11px; color: #909399; line-height: 1.6;">
+            [{{ idx }}] "{{ obj.label }}" →
+            原始: {{ (obj.debug && obj.debug.rawBbox) ? obj.debug.rawBbox.join(',') : '-' }}
+            ({{ obj.debug ? obj.debug.coordType : '-' }})
+            → 归一化: {{ (obj.debug && obj.debug.normalized) ? obj.debug.normalized.map(v => Number(v).toFixed(3)).join(',') : '-' }}
+            → 百分比: {{ (obj.debug && obj.debug.percent) ? obj.debug.percent.map(v => Number(v).toFixed(1)+'%').join(',') : '-' }}
+          </div>
+        </div>
       </div>
       <div v-if="detailForm.aiImageUrl" class="detail-title">图片</div>
-      <div v-if="detailForm.aiImageUrl" style="max-width: 100%; position: relative; border: 1px solid #dcdfe6; border-radius: 6px; overflow: hidden; background: #000;">
+      <div v-if="detailForm.annotatedImageUrl" style="max-width: 100%; border: 1px solid #dcdfe6; border-radius: 6px; overflow: hidden; background: #000;">
+        <el-image
+          :src="detailForm.annotatedImageUrl"
+          :preview-src-list="[detailForm.annotatedImageUrl]"
+          fit="contain"
+          style="width: 100%; display: block; cursor: pointer;"
+        />
+      </div>
+      <div v-else-if="detailForm.aiImageUrl" style="max-width: 100%; position: relative; border: 1px solid #dcdfe6; border-radius: 6px; overflow: hidden; background: #000;">
         <el-image
           :src="detailForm.aiImageUrl"
           :preview-src-list="[detailForm.aiImageUrl]"
@@ -221,7 +239,7 @@ import { listTask, getTask } from "@/api/uav/task"
 import { getRoute } from "@/api/uav/route"
 import AMapLoader from '@amap/amap-jsapi-loader'
 
-const AMAP_KEY = process.env.VUE_APP_AMAP_KEY || "3e12b539ccc9cec93cc71e8ce8a65306"
+const AMAP_KEY = process.env.VUE_APP_AMAP_KEY
 
 export default {
   name: "Result",
@@ -326,6 +344,7 @@ export default {
         findings: null,
         handlingInfo: null,
         aiImageUrl: null,
+        annotatedImageUrl: null,
         routePoints: null,
         remark: null
       }
@@ -431,13 +450,13 @@ export default {
       }
       const colors = ['#F56C6C', '#409EFF', '#67C23A', '#E6A23C', '#9B59B6', '#1ABC9C', '#E91E63', '#00BCD4']
       this.boundingBoxes = targets.map((t, idx) => ({
-        name: t.name || t.description || '目标',
+        name: t.name || '目标',
         style: {
           position: 'absolute',
-          top: (t.top || '15') + '%',
-          left: (t.left || '15') + '%',
-          width: (t.width || '70') + '%',
-          height: (t.height || '70') + '%',
+          top: (t.top || '0') + '%',
+          left: (t.left || '0') + '%',
+          width: (t.width || '0') + '%',
+          height: (t.height || '0') + '%',
           border: '2px solid ' + colors[idx % colors.length],
           backgroundColor: colors[idx % colors.length] + '25',
           borderRadius: '4px',
@@ -448,6 +467,7 @@ export default {
         }
       }))
     },
+
     submitForm() {
       this.$refs["form"].validate(valid => {
         if (!valid) return
@@ -478,9 +498,7 @@ export default {
       const formData = new FormData()
       formData.append('file', params.file)
       uploadResultImage(formData).then(resp => {
-        this.form.aiImageUrl = resp.url || resp.fileName
-        this.$modal.msgSuccess('图片上传成功')
-        this.autoFillFromAi()
+        this.applyUploadResult(resp)
       }).catch(() => {
         this.$modal.msgError('图片上传失败')
       })
@@ -496,15 +514,35 @@ export default {
       const formData = new FormData()
       formData.append('file', file)
       uploadResultImage(formData).then(resp => {
-        this.form.aiImageUrl = resp.url || resp.fileName
-        this.$modal.msgSuccess('图片上传成功')
-        this.autoFillFromAi()
+        this.applyUploadResult(resp)
       }).catch(() => {
         this.$modal.msgError('图片上传失败')
       })
     },
+    applyUploadResult(resp) {
+      this.form.aiImageUrl = resp.url || resp.fileName
+      if (resp.aiSuccess) {
+        this.form.annotatedImageUrl = resp.annotatedImageUrl || ''
+        if (resp.findings) this.form.findings = resp.findings
+        if (resp.handlingInfo) this.form.handlingInfo = resp.handlingInfo
+        if (resp.remark) this.form.remark = resp.remark
+        if (!this.form.overview || this.form.overview === '本次巡防任务正常完成，无异常情况') {
+          if (resp.findings) this.form.overview = resp.findings
+        }
+        const targetCount = (resp.targets && resp.targets.length) || 0
+        this.aiFormStatusMsg = 'AI已自动分析标注' + (targetCount > 0 ? '（检测到' + targetCount + '个目标）' : '')
+        this.$modal.msgSuccess('图片上传成功，AI已自动标注')
+      } else if (resp.aiSuccess === false) {
+        this.aiFormErrorMsg = 'AI分析失败：' + (resp.aiMessage || '接口异常')
+        this.$modal.msgSuccess('图片上传成功（AI分析未完成）')
+      } else {
+        this.$modal.msgSuccess('图片上传成功')
+        this.autoFillFromAi()
+      }
+    },
     removeImage() {
       this.form.aiImageUrl = null
+      this.form.annotatedImageUrl = null
       this.aiFormStatusMsg = ''
       this.aiFormErrorMsg = ''
     },

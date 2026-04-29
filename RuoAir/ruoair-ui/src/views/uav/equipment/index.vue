@@ -39,14 +39,14 @@
 
     <el-table v-loading="loading" :data="equipmentList" @selection-change="handleSelectionChange">
       <el-table-column type="selection" width="55" align="center" />
-      <el-table-column label="设备编号" align="center" prop="equipmentCode" width="130" />
-      <el-table-column label="设备名称" align="center" prop="equipmentName" min-width="140" show-overflow-tooltip />
-      <el-table-column label="设备状态" align="center" prop="status" width="100">
+      <el-table-column label="设备编号" align="center" prop="equipmentCode" min-width="130" />
+      <el-table-column label="设备名称" align="center" prop="equipmentName" min-width="160" show-overflow-tooltip />
+      <el-table-column label="设备状态" align="center" prop="status" min-width="100">
         <template slot-scope="scope">
           <dict-tag :options="dict.type.sys_uav_status" :value="scope.row.status" />
         </template>
       </el-table-column>
-      <el-table-column label="操作" align="center" class-name="small-padding fixed-width" width="200">
+      <el-table-column label="操作" align="center" class-name="small-padding fixed-width" min-width="200">
         <template slot-scope="scope">
           <el-button size="mini" type="text" icon="el-icon-view" @click="handleDetail(scope.row)">详情</el-button>
           <el-button size="mini" type="text" icon="el-icon-edit" @click="handleUpdate(scope.row)" v-hasPermi="['uav:equipment:edit']">修改</el-button>

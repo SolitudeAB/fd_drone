@@ -28,10 +28,10 @@
 
     <el-table v-loading="loading" :data="routeList" @selection-change="handleSelectionChange">
       <el-table-column type="selection" width="55" align="center" />
-      <el-table-column label="航线名称" align="center" prop="routeName" min-width="160" show-overflow-tooltip />
-      <el-table-column label="预计时长(分钟)" align="center" prop="estimatedTime" width="130" />
-      <el-table-column label="飞行高度(米)" align="center" prop="flightAltitude" width="120" />
-      <el-table-column label="操作" align="center" class-name="small-padding fixed-width" width="200">
+      <el-table-column label="航线名称" align="center" prop="routeName" min-width="180" show-overflow-tooltip />
+      <el-table-column label="预计时长(分钟)" align="center" prop="estimatedTime" min-width="120" />
+      <el-table-column label="飞行高度(米)" align="center" prop="flightAltitude" min-width="120" />
+      <el-table-column label="操作" align="center" class-name="small-padding fixed-width" min-width="200">
         <template slot-scope="scope">
           <el-button size="mini" type="text" icon="el-icon-view" @click="handleDetail(scope.row)">详情</el-button>
           <el-button size="mini" type="text" icon="el-icon-edit" @click="handleUpdate(scope.row)" v-hasPermi="['uav:route:edit']">修改</el-button>
@@ -125,7 +125,7 @@
 import { listRoute, getRoute, delRoute, addRoute, updateRoute, updateRoutePoints } from "@/api/uav/route"
 import AMapLoader from '@amap/amap-jsapi-loader'
 
-const AMAP_KEY = process.env.VUE_APP_AMAP_KEY || "3e12b539ccc9cec93cc71e8ce8a65306"
+const AMAP_KEY = process.env.VUE_APP_AMAP_KEY
 
 export default {
   name: "Route",

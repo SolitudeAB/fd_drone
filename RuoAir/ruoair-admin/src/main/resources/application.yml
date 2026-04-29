@@ -151,5 +151,5 @@ ai:
   qwen:
     enabled: true
     api-key: sk-99554dff0b4b4f88b572755c85c6cd18
-    model: qwen-vl-plus
+    model: qwen-vl-max
     base-url: https://dashscope.aliyuncs.com/compatible-mode/v1

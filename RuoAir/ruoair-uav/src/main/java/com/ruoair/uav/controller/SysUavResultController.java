@@ -170,19 +170,39 @@ public class SysUavResultController extends BaseController
     }
 
     /**
-     * 上传巡防图片（用于测试AI识别）
+     * 上传巡防图片并执行AI识别标注，返回带框选的标注图片URL
      */
     @PreAuthorize("@ss.hasPermi('uav:result:add')")
     @PostMapping("/uploadImage")
     public AjaxResult uploadImage(@RequestParam("file") MultipartFile file) {
         try {
+            // 1. 保存原图
             String filePath = RuoYiConfig.getUploadPath() + "/result";
             String fileName = FileUploadUtils.upload(filePath, file, MimeTypeUtils.IMAGE_EXTENSION);
             String url = serverConfig.getUrl() + fileName;
+
+            // 2. AI识别 + 画框标注
+            Map<String, Object> aiResult = aiRecognitionService.recognizeAndAnnotate(
+                    file.getBytes(), file.getOriginalFilename(), null);
+
             AjaxResult ajax = AjaxResult.success();
             ajax.put("url", url);
             ajax.put("fileName", fileName);
             ajax.put("originalFilename", file.getOriginalFilename());
+            if ((boolean) aiResult.getOrDefault("success", false)) {
+                ajax.put("aiSuccess", true);
+                ajax.put("findings", aiResult.get("findings"));
+                ajax.put("handlingInfo", aiResult.get("handlingInfo"));
+                ajax.put("remark", aiResult.get("remark"));
+                ajax.put("targets", aiResult.get("targets"));
+                String annotatedUrl = (String) aiResult.get("annotatedImageUrl");
+                if (annotatedUrl != null && !annotatedUrl.isEmpty()) {
+                    ajax.put("annotatedImageUrl", annotatedUrl);
+                }
+            } else {
+                ajax.put("aiSuccess", false);
+                ajax.put("aiMessage", aiResult.get("message"));
+            }
             return ajax;
         } catch (Exception e) {
             return AjaxResult.error("图片上传失败: " + e.getMessage());

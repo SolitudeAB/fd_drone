@@ -40,6 +40,12 @@
         <el-button type="success" plain icon="el-icon-edit" size="mini" :disabled="single" @click="handleUpdate" v-hasPermi="['uav:task:edit']">修改</el-button>
       </el-col>
       <el-col :span="1.5">
+        <el-button type="success" plain icon="el-icon-video-play" size="mini" :disabled="multiple" @click="handleBatchStart" v-hasPermi="['uav:task:edit']">批量开始</el-button>
+      </el-col>
+      <el-col :span="1.5">
+        <el-button type="warning" plain icon="el-icon-video-pause" size="mini" :disabled="multiple" @click="handleBatchCancel" v-hasPermi="['uav:task:edit']">批量取消</el-button>
+      </el-col>
+      <el-col :span="1.5">
         <el-button type="danger" plain icon="el-icon-delete" size="mini" :disabled="multiple" @click="handleDelete" v-hasPermi="['uav:task:remove']">删除</el-button>
       </el-col>
       <el-col :span="1.5">
@@ -215,7 +221,7 @@ import { listEquipment } from "@/api/uav/equipment"
 import { listRoute, getRoute } from "@/api/uav/route"
 import AMapLoader from '@amap/amap-jsapi-loader'
 
-const AMAP_KEY = process.env.VUE_APP_AMAP_KEY || "3e12b539ccc9cec93cc71e8ce8a65306"
+const AMAP_KEY = process.env.VUE_APP_AMAP_KEY
 
 export default {
   name: "Task",
@@ -389,6 +395,26 @@ export default {
     },
     handleExport() {
       this.download('uav/task/export', { ...this.queryParams }, `task_${new Date().getTime()}.xlsx`)
+    },
+    handleBatchStart() {
+      if (this.ids.length === 0) return
+      this.$modal.confirm('确认批量开始选中的 ' + this.ids.length + ' 个任务吗？仅待执行状态的任务会被启动。').then(() => {
+        const promises = this.ids.map(id => startTask(id).catch(() => {}))
+        return Promise.all(promises)
+      }).then(() => {
+        this.$modal.msgSuccess('批量开始操作已完成')
+        this.getList()
+      }).catch(() => {})
+    },
+    handleBatchCancel() {
+      if (this.ids.length === 0) return
+      this.$modal.confirm('确认批量取消选中的 ' + this.ids.length + ' 个任务吗？取消后设备恢复空闲，不生成巡防结果。').then(() => {
+        const promises = this.ids.map(id => cancelTask(id).catch(() => {}))
+        return Promise.all(promises)
+      }).then(() => {
+        this.$modal.msgSuccess('批量取消操作已完成')
+        this.getList()
+      }).catch(() => {})
     },
     handleStart(row) {
       this.$modal.confirm('确认要开始执行任务【' + row.taskName + '】吗？').then(() => {
