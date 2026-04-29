@@ -39,22 +39,18 @@
 
     <el-table v-loading="loading" :data="equipmentList" @selection-change="handleSelectionChange">
       <el-table-column type="selection" width="55" align="center" />
-      <el-table-column label="设备编号" align="center" prop="equipmentCode" width="120" />
-      <el-table-column label="设备名称" align="center" prop="equipmentName" />
-      <el-table-column label="设备型号" align="center" prop="equipmentModel" />
-      <el-table-column label="续航(分钟)" align="center" prop="flightDuration" width="100" />
-      <el-table-column label="摄像头参数" align="center" prop="cameraParams" show-overflow-tooltip />
-      <el-table-column label="归属人" align="center" prop="owner" width="100" />
+      <el-table-column label="设备编号" align="center" prop="equipmentCode" width="130" />
+      <el-table-column label="设备名称" align="center" prop="equipmentName" min-width="140" show-overflow-tooltip />
       <el-table-column label="设备状态" align="center" prop="status" width="100">
         <template slot-scope="scope">
           <dict-tag :options="dict.type.sys_uav_status" :value="scope.row.status" />
         </template>
       </el-table-column>
-      <el-table-column label="操作" align="center" class-name="small-padding fixed-width" width="230">
+      <el-table-column label="操作" align="center" class-name="small-padding fixed-width" width="200">
         <template slot-scope="scope">
           <el-button size="mini" type="text" icon="el-icon-view" @click="handleDetail(scope.row)">详情</el-button>
           <el-button size="mini" type="text" icon="el-icon-edit" @click="handleUpdate(scope.row)" v-hasPermi="['uav:equipment:edit']">修改</el-button>
-          <el-button size="mini" type="text" icon="el-icon-delete" @click="handleDelete(scope.row)" v-hasPermi="['uav:equipment:remove']">删除</el-button>
+          <el-button size="mini" type="text" icon="el-icon-delete" style="color: #F56C6C;" @click="handleDelete(scope.row)" v-hasPermi="['uav:equipment:remove']">删除</el-button>
         </template>
       </el-table-column>
     </el-table>
@@ -74,6 +70,7 @@
         </el-form-item>
         <el-form-item label="续航时长" prop="flightDuration">
           <el-input-number v-model="form.flightDuration" :min="1" :precision="0" style="width: 100%;" />
+          <span style="margin-left: 8px; color: #909399; font-size: 12px;">分钟</span>
         </el-form-item>
         <el-form-item label="摄像头参数" prop="cameraParams">
           <el-input v-model="form.cameraParams" placeholder="请输入摄像头参数" />
@@ -249,7 +246,7 @@ export default {
     },
     handleDelete(row) {
       const equipmentIds = row.equipmentId || this.ids
-      this.$modal.confirm('是否确认删除无人机设备编号为"' + equipmentIds + '"的数据项？').then(() => {
+      this.$modal.confirm('是否确认删除？该操作将永久删除设备数据，已绑定任务的设备无法删除。').then(() => {
         return delEquipment(equipmentIds)
       }).then(() => {
         this.getList()

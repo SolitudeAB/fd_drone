@@ -48,31 +48,20 @@
 
     <el-table v-loading="loading" :data="resultList" @selection-change="handleSelectionChange">
       <el-table-column type="selection" width="55" align="center" />
-      <el-table-column label="结果编号" align="center" prop="resultCode" min-width="130" />
-      <el-table-column label="任务名称" align="center" prop="taskName" min-width="150" show-overflow-tooltip />
-      <el-table-column label="任务状态" align="center" prop="taskStatus" width="100">
-        <template slot-scope="scope">
-          <el-tag v-if="scope.row.taskStatus === '0'" type="info">待执行</el-tag>
-          <el-tag v-else-if="scope.row.taskStatus === '1'">执行中</el-tag>
-          <el-tag v-else-if="scope.row.taskStatus === '2'" type="success">已完成</el-tag>
-          <el-tag v-else-if="scope.row.taskStatus === '3'" type="danger">已取消</el-tag>
-          <el-tag v-else type="info">{{ scope.row.taskStatus }}</el-tag>
-        </template>
-      </el-table-column>
-      <el-table-column label="设备名称" align="center" prop="equipmentName" min-width="120" />
-      <el-table-column label="航线名称" align="center" prop="routeName" min-width="120" />
-      <el-table-column label="巡防时长(分钟)" align="center" prop="patrolDuration" width="130" />
-      <el-table-column label="完成时间" align="center" prop="completedTime" width="160">
+      <el-table-column label="结果编号" align="center" prop="resultCode" min-width="120" show-overflow-tooltip />
+      <el-table-column label="任务名称" align="center" prop="taskName" min-width="140" show-overflow-tooltip />
+      <el-table-column label="设备名称" align="center" prop="equipmentName" min-width="110" show-overflow-tooltip />
+      <el-table-column label="航线名称" align="center" prop="routeName" min-width="110" show-overflow-tooltip />
+      <el-table-column label="完成时间" align="center" prop="completedTime" width="155">
         <template slot-scope="scope">{{ parseTime(scope.row.completedTime) }}</template>
       </el-table-column>
-      <el-table-column label="执行人" align="center" prop="executor" width="100" />
-      <el-table-column label="巡防概述" align="center" prop="overview" min-width="200" show-overflow-tooltip />
-      <el-table-column label="操作" align="center" class-name="small-padding fixed-width" width="280">
+      <el-table-column label="巡防概述" align="center" prop="overview" min-width="160" show-overflow-tooltip />
+      <el-table-column label="操作" align="center" class-name="small-padding fixed-width" width="240">
         <template slot-scope="scope">
           <el-button size="mini" type="text" icon="el-icon-view" @click="handleDetail(scope.row)">详情</el-button>
           <el-button size="mini" type="text" icon="el-icon-map-location" @click="handleViewMap(scope.row)">航线</el-button>
           <el-button size="mini" type="text" icon="el-icon-edit" @click="handleUpdate(scope.row)" v-hasPermi="['uav:result:edit']">修改</el-button>
-          <el-button size="mini" type="text" icon="el-icon-delete" @click="handleDelete(scope.row)" v-hasPermi="['uav:result:remove']">删除</el-button>
+          <el-button size="mini" type="text" icon="el-icon-delete" style="color: #F56C6C;" @click="handleDelete(scope.row)" v-hasPermi="['uav:result:remove']">删除</el-button>
           <el-button size="mini" type="text" icon="el-icon-download" @click="handleReport(scope.row)">PDF</el-button>
         </template>
       </el-table-column>
@@ -159,6 +148,7 @@
         </el-form-item>
         <el-form-item label="巡防时长">
           <el-input-number v-model="form.patrolDuration" :min="0" :precision="0" style="width: 100%;" />
+          <span style="margin-left: 8px; color: #909399; font-size: 12px;">分钟</span>
         </el-form-item>
         <el-form-item label="完成时间" prop="completedTime">
           <el-date-picker v-model="form.completedTime" type="datetime" value-format="yyyy-MM-dd HH:mm:ss" placeholder="请选择完成时间" style="width: 100%;" />
@@ -263,7 +253,7 @@ export default {
         resultCode: [{ required: true, message: "结果编号不能为空", trigger: "blur" }],
         taskId: [{ required: true, message: "任务不能为空", trigger: "change" }],
         overview: [{ required: true, message: "巡航概述不能为空", trigger: "blur" }],
-        aiImageUrl: [{ required: true, message: "请上传/插入巡航结果图片后再进行保存", trigger: "change" }],
+        aiImageUrl: [],
         completedTime: [{ required: true, message: "完成时间不能为空", trigger: "change" }]
       },
       mapOpen: false,
@@ -551,7 +541,7 @@ export default {
     },
     handleDelete(row) {
       const resultIds = row.resultId || this.ids
-      this.$modal.confirm('是否确认删除巡航结果编号为"' + resultIds + '"的数据项？').then(() => {
+      this.$modal.confirm('是否确认删除该巡防结果？删除后不可恢复，请谨慎操作。').then(() => {
         return delResult(resultIds)
       }).then(() => {
         this.getList()

@@ -50,25 +50,21 @@
 
     <el-table v-loading="loading" :data="taskList" @selection-change="handleSelectionChange">
       <el-table-column type="selection" width="55" align="center" />
-      <el-table-column label="任务名称" align="center" prop="taskName" min-width="150" show-overflow-tooltip />
-      <el-table-column label="执行人" align="center" prop="executor" width="100" />
-      <el-table-column label="设备名称" align="center" prop="equipmentName" min-width="120" show-overflow-tooltip />
-      <el-table-column label="航线名称" align="center" prop="routeName" min-width="120" show-overflow-tooltip />
-      <el-table-column label="任务状态" align="center" prop="taskStatus" width="100">
+      <el-table-column label="任务名称" align="center" prop="taskName" min-width="140" show-overflow-tooltip />
+      <el-table-column label="设备名称" align="center" prop="equipmentName" min-width="110" show-overflow-tooltip />
+      <el-table-column label="航线名称" align="center" prop="routeName" min-width="110" show-overflow-tooltip />
+      <el-table-column label="任务状态" align="center" prop="taskStatus" width="90">
         <template slot-scope="scope">
           <el-tag v-if="scope.row.taskStatus === '0' && scope.row.progress > 0" type="warning">已暂停</el-tag>
           <dict-tag v-else :options="dict.type.sys_uav_task_status" :value="scope.row.taskStatus" />
         </template>
       </el-table-column>
-      <el-table-column label="开始时间" align="center" prop="startTime" width="160">
-        <template slot-scope="scope">{{ parseTime(scope.row.startTime) }}</template>
-      </el-table-column>
-      <el-table-column label="进度" align="center" prop="progress" width="130">
+      <el-table-column label="进度" align="center" prop="progress" width="110">
         <template slot-scope="scope">
           <el-progress :percentage="formatProgress(scope.row.progress)" :status="formatProgress(scope.row.progress) === 100 ? 'success' : undefined" :stroke-width="8" />
         </template>
       </el-table-column>
-      <el-table-column label="操作" align="center" class-name="small-padding fixed-width" width="420">
+      <el-table-column label="操作" align="center" class-name="small-padding fixed-width" width="360">
         <template slot-scope="scope">
           <el-button size="mini" type="text" icon="el-icon-view" @click="handleDetail(scope.row)">详情</el-button>
           <el-button size="mini" type="text" icon="el-icon-map-location" @click="handleViewMap(scope.row)">航线</el-button>
@@ -77,7 +73,7 @@
             <el-button size="mini" type="text" icon="el-icon-video-play" style="color: #67C23A;" @click="handleStart(scope.row)">
               {{ scope.row.progress > 0 ? '继续飞行' : '开始' }}
             </el-button>
-            <el-button size="mini" type="text" icon="el-icon-close" style="color: #f56c6c;" @click="handleCancel(scope.row)">取消</el-button>
+            <el-button size="mini" type="text" icon="el-icon-close" style="color: #F56C6C;" @click="handleCancel(scope.row)">取消</el-button>
 
             <el-button v-if="!scope.row.progress || scope.row.progress === 0" size="mini" type="text" icon="el-icon-edit" @click="handleUpdate(scope.row)" v-hasPermi="['uav:task:edit']">修改</el-button>
           </template>
@@ -85,7 +81,7 @@
           <template v-if="scope.row.taskStatus === '1'">
             <el-button size="mini" type="text" icon="el-icon-data-line" style="color: #409EFF;" @click="handleMonitor(scope.row)">监控</el-button>
             <el-button size="mini" type="text" icon="el-icon-circle-check" style="color: #67C23A;" @click="handleComplete(scope.row)">完成</el-button>
-            <el-button size="mini" type="text" icon="el-icon-close" style="color: #f56c6c;" @click="handleCancel(scope.row)">取消</el-button>
+            <el-button size="mini" type="text" icon="el-icon-close" style="color: #F56C6C;" @click="handleCancel(scope.row)">取消</el-button>
           </template>
 
           <el-button
@@ -93,6 +89,7 @@
             size="mini"
             type="text"
             icon="el-icon-delete"
+            style="color: #F56C6C;"
             @click="handleDelete(scope.row)"
             v-hasPermi="['uav:task:remove']"
           >删除</el-button>
@@ -383,7 +380,7 @@ export default {
     },
     handleDelete(row) {
       const taskIds = row.taskId || this.ids
-      this.$modal.confirm('是否确认删除任务编号为"' + taskIds + '"的数据项？').then(() => {
+      this.$modal.confirm('是否确认删除该任务？仅已完成或已取消的任务可删除，删除后关联结果将一并清除且不可恢复。').then(() => {
         return delTask(taskIds)
       }).then(() => {
         this.getList()
@@ -415,7 +412,7 @@ export default {
       }).catch(() => {});
     },
     handleCancel(row) {
-      this.$modal.confirm('确认取消任务【' + row.taskName + '】吗？取消后不生成巡防结果。').then(() => {
+      this.$modal.confirm('确认取消任务【' + row.taskName + '】吗？取消后设备将恢复为空闲状态，不生成巡防结果记录。').then(() => {
         return cancelTask(row.taskId)
       }).then(() => {
         this.$modal.msgSuccess("任务已取消")

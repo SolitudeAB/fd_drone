@@ -28,15 +28,14 @@
 
     <el-table v-loading="loading" :data="routeList" @selection-change="handleSelectionChange">
       <el-table-column type="selection" width="55" align="center" />
-      <el-table-column label="航线ID" align="center" prop="routeId" width="90" />
-      <el-table-column label="航线名称" align="center" prop="routeName" min-width="150" />
+      <el-table-column label="航线名称" align="center" prop="routeName" min-width="160" show-overflow-tooltip />
       <el-table-column label="预计时长(分钟)" align="center" prop="estimatedTime" width="130" />
       <el-table-column label="飞行高度(米)" align="center" prop="flightAltitude" width="120" />
-      <el-table-column label="操作" align="center" class-name="small-padding fixed-width" width="240">
+      <el-table-column label="操作" align="center" class-name="small-padding fixed-width" width="200">
         <template slot-scope="scope">
           <el-button size="mini" type="text" icon="el-icon-view" @click="handleDetail(scope.row)">详情</el-button>
           <el-button size="mini" type="text" icon="el-icon-edit" @click="handleUpdate(scope.row)" v-hasPermi="['uav:route:edit']">修改</el-button>
-          <el-button size="mini" type="text" icon="el-icon-delete" @click="handleDelete(scope.row)" v-hasPermi="['uav:route:remove']">删除</el-button>
+          <el-button size="mini" type="text" icon="el-icon-delete" style="color: #F56C6C;" @click="handleDelete(scope.row)" v-hasPermi="['uav:route:remove']">删除</el-button>
         </template>
       </el-table-column>
     </el-table>
@@ -69,9 +68,11 @@
             </el-form-item>
             <el-form-item label="预计时长" prop="estimatedTime">
               <el-input-number v-model="form.estimatedTime" :min="1" :precision="0" style="width: 100%;" />
+              <span style="margin-left: 8px; color: #909399; font-size: 12px;">分钟</span>
             </el-form-item>
             <el-form-item label="飞行高度" prop="flightAltitude">
               <el-input-number v-model="form.flightAltitude" :min="10" style="width: 100%;" />
+              <span style="margin-left: 8px; color: #909399; font-size: 12px;">米</span>
             </el-form-item>
             <el-form-item label="航线数据" prop="routePoints">
               <el-input v-model="form.routePoints" type="textarea" :rows="6" placeholder="在地图绘制后自动生成坐标数据" readonly />
@@ -245,7 +246,7 @@ export default {
     },
     handleDelete(row) {
       const routeIds = row.routeId || this.ids
-      this.$modal.confirm('是否确认删除巡航航线编号为"' + routeIds + '"的数据项？').then(() => {
+      this.$modal.confirm('是否确认删除该航线？已绑定未完成任务的航线无法删除，删除后不可恢复。').then(() => {
         return delRoute(routeIds)
       }).then(() => {
         this.getList()
