@@ -133,6 +133,9 @@
           <span class="box-label">{{ box.name }}</span>
         </div>
       </div>
+      <!-- 航线轨迹（详情内嵌） -->
+      <div v-if="detailForm.routePoints" class="detail-title">巡防航线轨迹</div>
+      <div v-if="detailForm.routePoints" id="map-detail-result-container" class="map-box" style="height:300px; margin-bottom: 12px;"></div>
     </el-dialog>
 
     <el-dialog title="航线轨迹预览" :visible.sync="mapOpen" width="800px" append-to-body @opened="initEchoMap">
@@ -142,13 +145,61 @@
       <div id="map-echo-container" class="map-box"></div>
     </el-dialog>
 
-    <el-dialog :title="title" :visible.sync="open" width="700px" append-to-body>
+    <el-dialog :title="title" :visible.sync="open" width="750px" append-to-body>
+      <!-- ===== 图片上传区（置顶） ===== -->
+      <div class="ai-upload-section">
+        <div class="upload-label">
+          <i class="el-icon-picture-outline"></i> 上传巡防图片（AI自动识别标注）
+        </div>
+        <div
+          class="drop-zone"
+          :class="{ 'drop-active': dragOver }"
+          @dragover.prevent="dragOver = true"
+          @dragleave="dragOver = false"
+          @drop.prevent="handleDrop"
+        >
+          <div v-if="!form.aiImageUrl && !aiUploading" style="text-align: center; padding: 30px 0;">
+            <i class="el-icon-upload2" style="font-size: 36px; color: #c0c4cc;"></i>
+            <div style="color: #909399; margin-top: 8px; font-size: 14px;">拖放图片到此处 或 点击下方按钮上传</div>
+            <div style="font-size: 12px; color: #c0c4cc; margin-top: 4px;">支持 JPG / PNG / WEBP，≤5MB</div>
+          </div>
+          <div v-else-if="aiUploading" style="text-align: center; padding: 30px 0;">
+            <i class="el-icon-loading" style="font-size: 32px; color: #409EFF;"></i>
+            <div style="color: #409EFF; margin-top: 8px; font-size: 14px;">AI正在分析识别...</div>
+          </div>
+          <div v-else style="text-align: center; padding: 10px;">
+            <el-image :src="annotatedPreviewUrl || form.aiImageUrl" fit="contain" style="max-height: 200px; cursor: pointer;" :preview-src-list="[annotatedPreviewUrl || form.aiImageUrl]" />
+            <div style="margin-top: 8px;">
+              <el-tag size="mini" :type="annotatedPreviewUrl ? 'success' : 'info'" style="margin-right: 6px;">{{ annotatedPreviewUrl ? 'AI已标注' : '已上传' }}</el-tag>
+              <el-button size="mini" type="text" icon="el-icon-delete" @click="removeImage" style="color: #f56c6c;">移除</el-button>
+            </div>
+          </div>
+        </div>
+        <div style="margin-top: 8px; display: flex; gap: 8px; align-items: center;">
+          <el-upload
+            action=""
+            :http-request="handleImageUpload"
+            :show-file-list="false"
+            accept="image/png,image/jpeg,image/jpg,image/gif,image/webp"
+            :before-upload="beforeImageUpload"
+          >
+            <el-button size="small" type="primary" icon="el-icon-upload" :loading="aiUploading">选择图片并AI分析</el-button>
+          </el-upload>
+          <el-input v-model="form.aiImageUrl" placeholder="或粘贴图片URL" size="small" style="flex: 1; min-width: 160px;" clearable @change="onUrlInput" />
+        </div>
+        <div v-if="aiFormStatusMsg" style="margin-top: 6px; font-size: 12px; color: #67C23A;">{{ aiFormStatusMsg }}</div>
+        <div v-if="aiFormErrorMsg" style="margin-top: 6px; font-size: 12px; color: #F56C6C;">{{ aiFormErrorMsg }}</div>
+      </div>
+
+      <el-divider />
+
+      <!-- ===== 基础信息 ===== -->
       <el-form ref="form" :model="form" :rules="rules" label-width="100px">
         <el-form-item label="结果编号" prop="resultCode">
-          <el-input v-model="form.resultCode" placeholder="请输入结果编号" :disabled="form.resultId != null" />
+          <el-input v-model="form.resultCode" placeholder="自动生成或手动输入" :disabled="form.resultId != null" />
         </el-form-item>
         <el-form-item label="关联任务" prop="taskId">
-          <el-select v-model="form.taskId" filterable placeholder="请选择任务" style="width: 100%;" :disabled="form.resultId != null">
+          <el-select v-model="form.taskId" filterable placeholder="请选择任务" style="width: 100%;" :disabled="form.resultId != null" @change="onTaskChange">
             <el-option v-for="item in taskOptions" :key="item.taskId" :label="item.taskName" :value="item.taskId" />
           </el-select>
         </el-form-item>
@@ -171,58 +222,20 @@
         <el-form-item label="完成时间" prop="completedTime">
           <el-date-picker v-model="form.completedTime" type="datetime" value-format="yyyy-MM-dd HH:mm:ss" placeholder="请选择完成时间" style="width: 100%;" />
         </el-form-item>
+
+        <el-divider content-position="left">AI分析结果（可手动修改）</el-divider>
+
         <el-form-item label="巡防概述" prop="overview">
-          <el-input v-model="form.overview" type="textarea" :rows="3" placeholder="请输入内容" />
+          <el-input v-model="form.overview" type="textarea" :rows="2" placeholder="AI分析后自动填充" />
         </el-form-item>
         <el-form-item label="发现情况" prop="findings">
-          <el-input v-model="form.findings" type="textarea" :rows="3" placeholder="请输入内容" />
+          <el-input v-model="form.findings" type="textarea" :rows="2" placeholder="AI分析后自动填充" />
         </el-form-item>
         <el-form-item label="处理情况" prop="handlingInfo">
-          <el-input v-model="form.handlingInfo" type="textarea" :rows="3" placeholder="请输入处理情况" />
-        </el-form-item>
-        <el-form-item label="AI识别图片" prop="aiImageUrl" class="ai-upload-area">
-          <div
-            class="drop-zone"
-            :class="{ 'drop-active': dragOver }"
-            @dragover.prevent="dragOver = true"
-            @dragleave="dragOver = false"
-            @drop.prevent="handleDrop"
-          >
-            <div v-if="!form.aiImageUrl" style="text-align: center; padding: 20px 0;">
-              <i class="el-icon-upload2" style="font-size: 28px; color: #c0c4cc;"></i>
-              <div style="color: #909399; margin-top: 8px; font-size: 13px;">
-                拖放图片到此处 或 点击下方按钮上传<br>
-                <span style="font-size: 11px; color: #c0c4cc;">支持 JPG / PNG / WEBP，≤5MB</span>
-              </div>
-            </div>
-            <div v-else style="text-align: center;">
-              <el-image :src="form.aiImageUrl" fit="contain" style="max-height: 180px; cursor: pointer;" :preview-src-list="[form.aiImageUrl]" />
-              <div style="margin-top: 6px;">
-                <el-tag size="mini" type="success" style="margin-right: 6px;">已上传</el-tag>
-                <el-button size="mini" type="text" icon="el-icon-delete" @click="removeImage" style="color: #f56c6c;">移除</el-button>
-              </div>
-            </div>
-          </div>
-          <div style="margin-top: 8px; display: flex; gap: 8px; flex-wrap: wrap; align-items: center;">
-            <el-upload
-              action=""
-              :http-request="handleImageUpload"
-              :show-file-list="false"
-              accept="image/png,image/jpeg,image/jpg,image/gif,image/webp"
-              :before-upload="beforeImageUpload"
-            >
-              <el-button size="small" type="primary" plain icon="el-icon-upload">选择图片</el-button>
-            </el-upload>
-            <el-button v-if="form.aiImageUrl" size="small" type="success" icon="el-icon-cpu" @click="handleFormAiAnalyze" :loading="aiFormAnalyzing">
-              自动分析填充
-            </el-button>
-            <el-input v-model="form.aiImageUrl" placeholder="或粘贴图片URL" size="small" style="flex: 1; min-width: 180px;" clearable />
-          </div>
-          <div v-if="aiFormStatusMsg" style="margin-top: 4px; font-size: 12px; color: #67C23A;">{{ aiFormStatusMsg }}</div>
-          <div v-if="aiFormErrorMsg" style="margin-top: 4px; font-size: 12px; color: #F56C6C;">{{ aiFormErrorMsg }}</div>
+          <el-input v-model="form.handlingInfo" type="textarea" :rows="2" placeholder="AI分析后自动填充" />
         </el-form-item>
         <el-form-item label="备注" prop="remark">
-          <el-input v-model="form.remark" type="textarea" placeholder="请输入内容" />
+          <el-input v-model="form.remark" type="textarea" :rows="2" placeholder="AI分析后自动填充" />
         </el-form-item>
       </el-form>
       <div slot="footer" class="dialog-footer">
@@ -285,6 +298,8 @@ export default {
       boundingBoxes: [],
       aiImageNaturalSize: { w: 0, h: 0 },
       dragOver: false,
+      aiUploading: false,
+      annotatedPreviewUrl: null,
       aiFormAnalyzing: false,
       aiFormStatusMsg: '',
       aiFormErrorMsg: ''
@@ -293,18 +308,6 @@ export default {
   created() {
     this.getList()
     this.loadTaskOptions()
-  },
-  watch: {
-    'form.taskId'(val) {
-      if (!val || this.form.resultId) return
-      getTask(val).then(resp => {
-        const task = resp.data || {}
-        this.form.taskName = task.taskName || ''
-        this.form.equipmentName = task.equipmentName || ''
-        this.form.routeName = task.routeName || ''
-        this.form.executor = task.executor || ''
-      })
-    }
   },
   methods: {
     loadTaskOptions() {
@@ -349,6 +352,10 @@ export default {
         remark: null
       }
       this.resetForm("form")
+      this.annotatedPreviewUrl = null
+      this.aiUploading = false
+      this.aiFormStatusMsg = ''
+      this.aiFormErrorMsg = ''
     },
     handleQuery() {
       this.queryParams.pageNum = 1
@@ -390,7 +397,28 @@ export default {
         if (this.detailForm.aiImageUrl) {
           this.checkAiAvailability()
         }
+        this.$nextTick(() => {
+          this.initDetailRouteMap()
+        })
       })
+    },
+    initDetailRouteMap() {
+      if (!this.detailForm.routePoints) return
+      const container = document.getElementById('map-detail-result-container')
+      if (!container) return
+      AMapLoader.load({ key: AMAP_KEY, version: '2.0', plugins: ['AMap.Polyline', 'AMap.Marker'] }).then((AMap) => {
+        const map = new AMap.Map('map-detail-result-container', { zoom: 14 })
+        try {
+          const path = JSON.parse(this.detailForm.routePoints)
+          if (path && path.length > 0) {
+            const polyline = new AMap.Polyline({ path, strokeColor: '#409EFF', strokeWeight: 6, showDir: true })
+            map.add(polyline)
+            map.setFitView()
+          }
+        } catch (e) {
+          // 坐标格式异常
+        }
+      }).catch(() => {})
     },
     checkAiAvailability() {
       checkAiStatus().then(resp => {
@@ -495,11 +523,13 @@ export default {
     handleImageUpload(params) {
       this.aiFormStatusMsg = ''
       this.aiFormErrorMsg = ''
+      this.aiUploading = true
       const formData = new FormData()
       formData.append('file', params.file)
       uploadResultImage(formData).then(resp => {
         this.applyUploadResult(resp)
       }).catch(() => {
+        this.aiUploading = false
         this.$modal.msgError('图片上传失败')
       })
     },
@@ -511,71 +541,89 @@ export default {
       if (!this.beforeImageUpload(file)) return
       this.aiFormStatusMsg = ''
       this.aiFormErrorMsg = ''
+      this.aiUploading = true
       const formData = new FormData()
       formData.append('file', file)
       uploadResultImage(formData).then(resp => {
         this.applyUploadResult(resp)
       }).catch(() => {
+        this.aiUploading = false
         this.$modal.msgError('图片上传失败')
       })
     },
+    onTaskChange(taskId) {
+      if (!taskId || this.form.resultId) return
+      const task = this.taskOptions.find(t => t.taskId === taskId)
+      if (task) {
+        this.form.taskName = task.taskName || ''
+        this.form.equipmentName = task.equipmentName || ''
+        this.form.routeName = task.routeName || ''
+        this.form.executor = task.executor || ''
+      }
+    },
+    onUrlInput(url) {
+      if (!url) return
+      this.aiUploading = true
+      this.aiFormStatusMsg = 'AI正在分析URL图片...'
+      this.aiFormErrorMsg = ''
+      autoAnalyze(url, this.form.taskName || '').then(resp => {
+        this.aiUploading = false
+        const data = resp.data || {}
+        if (data.success) {
+          if (data.findings) { this.form.findings = data.findings; this.form.overview = data.findings }
+          if (data.handlingInfo) this.form.handlingInfo = data.handlingInfo
+          if (data.remark) this.form.remark = data.remark
+          if (!this.form.resultCode) this.form.resultCode = 'RES-' + Date.now()
+          this.aiFormStatusMsg = '✅ AI分析完成，已自动填充'
+        } else {
+          this.aiFormErrorMsg = '分析失败：' + (data.message || '接口异常')
+        }
+      }).catch(() => {
+        this.aiUploading = false
+        this.aiFormErrorMsg = 'AI接口调用失败'
+      })
+    },
     applyUploadResult(resp) {
+      this.aiUploading = false
       this.form.aiImageUrl = resp.url || resp.fileName
       if (resp.aiSuccess) {
-        this.form.annotatedImageUrl = resp.annotatedImageUrl || ''
-        if (resp.findings) this.form.findings = resp.findings
+        // 标注图替换原图作为主图
+        if (resp.annotatedImageUrl) {
+          this.form.annotatedImageUrl = resp.annotatedImageUrl
+          this.annotatedPreviewUrl = resp.annotatedImageUrl
+          this.form.aiImageUrl = resp.annotatedImageUrl
+        }
+        // 自动填充全部文字字段
+        if (resp.findings) {
+          this.form.findings = resp.findings
+          this.form.overview = resp.findings
+        }
         if (resp.handlingInfo) this.form.handlingInfo = resp.handlingInfo
         if (resp.remark) this.form.remark = resp.remark
-        if (!this.form.overview || this.form.overview === '本次巡防任务正常完成，无异常情况') {
-          if (resp.findings) this.form.overview = resp.findings
+        // 自动生成结果编号
+        if (!this.form.resultCode) {
+          this.form.resultCode = 'RES-' + Date.now()
         }
         const targetCount = (resp.targets && resp.targets.length) || 0
-        this.aiFormStatusMsg = 'AI已自动分析标注' + (targetCount > 0 ? '（检测到' + targetCount + '个目标）' : '')
-        this.$modal.msgSuccess('图片上传成功，AI已自动标注')
+        this.aiFormStatusMsg = '✅ AI分析完成，已自动填充全部字段（检测到' + targetCount + '个目标）'
+        this.$modal.msgSuccess('AI识别标注完成，表单已自动填充')
       } else if (resp.aiSuccess === false) {
         this.aiFormErrorMsg = 'AI分析失败：' + (resp.aiMessage || '接口异常')
-        this.$modal.msgSuccess('图片上传成功（AI分析未完成）')
+        this.$modal.msgWarning('AI分析未完成，请手动填写')
       } else {
         this.$modal.msgSuccess('图片上传成功')
-        this.autoFillFromAi()
       }
     },
     removeImage() {
       this.form.aiImageUrl = null
       this.form.annotatedImageUrl = null
+      this.annotatedPreviewUrl = null
+      this.aiUploading = false
       this.aiFormStatusMsg = ''
       this.aiFormErrorMsg = ''
     },
     handleFormAiAnalyze() {
-      this.autoFillFromAi()
-    },
-    autoFillFromAi() {
-      if (!this.form.aiImageUrl) return
-      this.aiFormAnalyzing = true
-      this.aiFormStatusMsg = 'AI正在分析图片...'
-      this.aiFormErrorMsg = ''
-      const taskName = this.form.taskName || ''
-      autoAnalyze(this.form.aiImageUrl, taskName).then(resp => {
-        const { data } = resp
-        if (data.success) {
-          this.aiFormStatusMsg = 'AI分析完成！已自动填充发现情况、处理情况、备注，请核对后保存'
-          if (data.findings) this.form.findings = data.findings
-          if (data.handlingInfo) this.form.handlingInfo = data.handlingInfo
-          if (data.remark) this.form.remark = data.remark
-          if (!this.form.overview || this.form.overview === '本次巡防任务正常完成，无异常情况') {
-            if (data.findings) this.form.overview = data.findings
-          }
-          if (data.targets && data.targets.length > 0) {
-            this.aiFormStatusMsg += ' （检测到' + data.targets.length + '个目标）'
-          }
-        } else {
-          this.aiFormErrorMsg = (data.message || 'AI分析失败').replace(/AI识别/g, 'AI分析')
-        }
-      }).catch(() => {
-        this.aiFormErrorMsg = 'AI分析接口未连接或已失效，请手动填写各字段'
-      }).finally(() => {
-        this.aiFormAnalyzing = false
-      })
+      this.onUrlInput(this.form.aiImageUrl)
     },
     handleDelete(row) {
       const resultIds = row.resultId || this.ids
