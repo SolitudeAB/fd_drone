@@ -45,3 +45,14 @@ nbdist/
 !*/build/*.java
 !*/build/*.html
 !*/build/*.xml
+
+######################################################################
+# Sensitive configs — DO NOT COMMIT real keys
+ruoair-admin/src/main/resources/application.yml
+ruoair-ui/.env.development
+ruoair-ui/.env.production
+ruoair-ui/.env.staging
+
+# Uploaded / generated runtime files
+pic/upload/
+pic/avatar/
